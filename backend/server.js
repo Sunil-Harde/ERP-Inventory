@@ -29,11 +29,22 @@ const httpServer = http.createServer(app);
 
 // ── Security Middleware ──
 app.use(helmet());
+
+// app.use(cors({
+//   origin: process.env.NODE_ENV === 'production'
+//     ? process.env.CLIENT_URL
+//     : '*',
+//   credentials: true,
+// }));
+
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.CLIENT_URL
-    : '*',
-  credentials: true,
+  origin: [
+    "http://localhost:3000",
+    "https://erp-inventory-sable.vercel.app",
+    "https://ai-inventory-system.netlify.app/"
+  ],
+  credentials: true
 }));
 
 // ── Rate Limiter ──

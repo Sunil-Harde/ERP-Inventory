@@ -1,0 +1,308 @@
+/* Mobile-first scan page */
+.scan-page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+  animation: fadeUp 0.3s ease;
+}
+
+.scan-page-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.scan-page-icon {
+  font-size: 2rem;
+  color: var(--primary-400);
+}
+
+.scan-page-header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--text-primary), var(--primary-300));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.scan-page-header p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Viewfinder */
+.viewfinder-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+}
+
+.scan-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scan-canvas {
+  display: none;
+}
+
+/* Overlay + target box */
+.scan-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scan-target {
+  position: relative;
+  width: 58%;
+  aspect-ratio: 1;
+}
+
+.corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-color: var(--primary-400);
+  border-style: solid;
+  opacity: 0.9;
+}
+
+.corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+/* Animated scan line */
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary-400), transparent);
+  animation: scanSweep 2s linear infinite;
+  top: 0;
+}
+
+@keyframes scanSweep {
+  0%   { top: 0%; opacity: 1; }
+  90%  { top: 100%; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Controls */
+.scan-controls {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.6rem;
+  z-index: 5;
+}
+
+.scan-ctrl-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1rem;
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: white;
+  transition: all var(--transition-fast);
+}
+
+.scan-ctrl-btn:hover { background: rgba(255, 255, 255, 0.25); }
+.scan-ctrl-btn.primary { background: var(--primary-600); }
+.scan-ctrl-btn.primary:hover { background: var(--primary-500); }
+.scan-ctrl-btn.danger { background: rgba(239, 68, 68, 0.7); }
+.scan-ctrl-btn.danger:hover { background: rgba(239, 68, 68, 0.9); }
+
+/* Status bar */
+.scan-status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.4rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.scan-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.scan-status-dot.active {
+  background: var(--success);
+  box-shadow: 0 0 5px rgba(34, 197, 94, 0.6);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.scan-last {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+/* Error */
+.scan-error-box {
+  background: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.scan-error-box p {
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+/* Scan History */
+.scan-history {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.scan-history h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.85rem;
+}
+
+.scan-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scan-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--border-color);
+  gap: 0.5rem;
+}
+
+.scan-history-item.success { border-left-color: var(--success); }
+.scan-history-item.fail    { border-left-color: var(--danger); }
+
+.scan-history-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.scan-history-code {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-400);
+}
+
+.scan-history-name {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.scan-history-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.scan-history-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Instructions */
+.scan-instructions {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.scan-instructions h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.scan-instructions ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.scan-instructions li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.scan-instructions code {
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--primary-300);
+}
+
+/* Mobile optimizations */
+@media (max-width: 480px) {
+  .scan-page {
+    padding: 0;
+  }
+
+  .viewfinder-wrapper {
+    border-radius: 0;
+    aspect-ratio: 1;
+  }
+}

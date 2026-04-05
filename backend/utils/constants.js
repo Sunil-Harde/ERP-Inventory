@@ -1,0 +1,89 @@
+// ── Role Enums ──
+const ROLES = {
+  ADMIN: 'ADMIN',
+  STAFF_PURCHASE: 'STAFF_PURCHASE',
+  STAFF_QUALITY: 'STAFF_QUALITY',
+  STAFF_RND: 'STAFF_RND',
+  STAFF_STORE: 'STAFF_STORE',
+};
+
+const ALL_ROLES = Object.values(ROLES);
+
+// ── Department Mapping ──
+const DEPARTMENT_MAP = {
+  [ROLES.ADMIN]: 'admin',
+  [ROLES.STAFF_PURCHASE]: 'purchase',
+  [ROLES.STAFF_QUALITY]: 'quality',
+  [ROLES.STAFF_RND]: 'rnd',
+  [ROLES.STAFF_STORE]: 'store',
+};
+
+// ── Purchase Order Statuses ──
+const PO_STATUS = {
+  ORDERED: 'ORDERED',
+  PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
+  RECEIVED: 'RECEIVED',
+};
+
+// ── Quality Inspection Statuses ──
+const QC_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+};
+
+// ── R&D Request Statuses ──
+const RND_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  ISSUED: 'ISSUED',
+  REJECTED: 'REJECTED',
+};
+
+// ── Transaction Types ──
+const TXN_TYPE = {
+  IN: 'IN',
+  OUT: 'OUT',
+};
+
+// ── Audit Action Types ──
+const AUDIT_ACTIONS = {
+  // Auth
+  USER_REGISTERED: 'USER_REGISTERED',
+  USER_LOGIN: 'USER_LOGIN',
+  USER_UPDATED: 'USER_UPDATED',
+  USER_DEACTIVATED: 'USER_DEACTIVATED',
+  PASSWORD_CHANGED: 'PASSWORD_CHANGED',
+
+  // Inventory
+  ITEM_CREATED: 'ITEM_CREATED',
+  ITEM_UPDATED: 'ITEM_UPDATED',
+  STOCK_IN: 'STOCK_IN',
+  STOCK_OUT: 'STOCK_OUT',
+
+  // Purchase
+  PO_CREATED: 'PO_CREATED',
+  PO_UPDATED: 'PO_UPDATED',
+  PO_RECEIVED: 'PO_RECEIVED',
+
+  // Quality
+  QC_APPROVED: 'QC_APPROVED',
+  QC_REJECTED: 'QC_REJECTED',
+
+  // R&D
+  RND_REQUEST_CREATED: 'RND_REQUEST_CREATED',
+  RND_REQUEST_APPROVED: 'RND_REQUEST_APPROVED',
+  RND_REQUEST_REJECTED: 'RND_REQUEST_REJECTED',
+  RND_MATERIAL_ISSUED: 'RND_MATERIAL_ISSUED',
+};
+
+module.exports = {
+  ROLES,
+  ALL_ROLES,
+  DEPARTMENT_MAP,
+  PO_STATUS,
+  QC_STATUS,
+  RND_STATUS,
+  TXN_TYPE,
+  AUDIT_ACTIONS,
+};

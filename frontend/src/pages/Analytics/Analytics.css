@@ -1,0 +1,99 @@
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Department Bars */
+.dept-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dept-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dept-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  width: 80px;
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+.dept-bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dept-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-600), var(--accent-500));
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 4px;
+}
+
+.dept-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 50px;
+  text-align: right;
+}
+
+/* Prediction */
+.prediction-results {
+  animation: fadeUp 0.3s ease;
+}
+
+.prediction-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.prediction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.pred-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.pred-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.pred-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}

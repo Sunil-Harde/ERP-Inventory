@@ -1,0 +1,47 @@
+.app-header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.menu-toggle {
+  display: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.menu-toggle:hover {
+  background: var(--bg-glass);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.header-greeting {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.header-greeting strong {
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: flex;
+  }
+}

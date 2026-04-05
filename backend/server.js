@@ -38,14 +38,18 @@ app.use(helmet());
 // }));
 
 
+
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://erp-inventory-sable.vercel.app",
-    "https://ai-inventory-system.netlify.app/"
+    "https://ai-inventory-system.netlify.app"
   ],
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"],
   credentials: true
 }));
+
+app.options('*', cors());
 
 // ── Rate Limiter ──
 const limiter = rateLimit({

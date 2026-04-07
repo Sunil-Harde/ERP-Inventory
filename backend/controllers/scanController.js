@@ -1,14 +1,9 @@
 const Item = require('../models/Item');
 const { emitToUser } = require('../utils/socketManager');
 
-/**
- * @desc    Process a QR scan and emit real-time event to the user's dashboard
- * @route   POST /api/v1/scan
- * @access  Private
- */
 const processScan = async (req, res, next) => {
   try {
-    const { qrData } = req.body;
+    const { qrData, action } = req.body;
 
     if (!qrData || typeof qrData !== 'string') {
       return res.status(400).json({
@@ -17,8 +12,8 @@ const processScan = async (req, res, next) => {
       });
     }
 
-    // Parse QR string: ITEMCODE|PACKQTY
     const parts = qrData.trim().split('|');
+
     if (parts.length < 2) {
       return res.status(400).json({
         success: false,
@@ -36,8 +31,8 @@ const processScan = async (req, res, next) => {
       });
     }
 
-    // Look up item
     const item = await Item.findOne({ itemCode });
+
     if (!item) {
       return res.status(404).json({
         success: false,
@@ -45,24 +40,25 @@ const processScan = async (req, res, next) => {
       });
     }
 
-    // Emit real-time event only to this user's socket room
+    // ✅ FINAL PAYLOAD (MATCH FRONTEND)
     const payload = {
       itemCode: item.itemCode,
       itemName: item.itemName,
-      packQty,
-      currentStock: item.stock,
-      uom: item.uom,
+      qty: packQty,
+      action: action || 'IN',
       scannedBy: req.user.name,
       scannedAt: new Date().toISOString(),
     };
 
+    // ✅ REAL-TIME EMIT
     emitToUser(req.user._id.toString(), 'qr_scanned', payload);
 
     return res.status(200).json({
       success: true,
-      message: 'Scan received. Event sent to your dashboard.',
+      message: 'Scan processed successfully',
       data: payload,
     });
+
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,5 @@
-const API_BASE = 'https://erp-inventory-sable.vercel.app/api/v1';
+// const API_BASE = 'https://erp-inventory-sable.vercel.app/api/v1';
+const API_BASE = '/api/v1';
 
 class ApiService {
   constructor() {

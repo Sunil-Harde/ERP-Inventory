@@ -9,7 +9,8 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://erp-inventory-sable.vercel.app/',
+        // target: 'https://erp-inventory-sable.vercel.app/',
+        target: ' http://localhost:5000',
         changeOrigin: true,
       },
     },

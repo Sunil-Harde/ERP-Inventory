@@ -94,17 +94,30 @@ export const qualityAPI = {
   get: (id) => api.get(`/quality/${id}`),
   approve: (id, data) => api.put(`/quality/${id}/approve`, data),
   reject: (id, data) => api.put(`/quality/${id}/reject`, data),
+  partialApprove: (id, data) => api.put(`/quality/${id}/partial-approve`, data),
+};
+
+// ── Rejected Items ──
+export const rejectedItemsAPI = {
+  list: (params = '') => api.get(`/rejected-items?${params}`),
+  stats: () => api.get('/rejected-items/stats'),
 };
 
 // ── R&D ──
+// ── R&D & BOM (Manufacturing) ──
 export const rndAPI = {
-  createRequest: (data) => api.post('/rnd/request', data),
-  listRequests: (params = '') => api.get(`/rnd/requests?${params}`),
-  getRequest: (id) => api.get(`/rnd/request/${id}`),
-  approve: (id, data) => api.put(`/rnd/request/${id}/approve`, data),
-  reject: (id, data) => api.put(`/rnd/request/${id}/reject`, data),
-  issue: (id) => api.put(`/rnd/request/${id}/issue`),
+  // ✨ Switched these endpoints from '/rnd/request' to '/rnd/bom'
+  createRequest: (data) => api.post('/rnd/bom', data),
+  listRequests: (params = '') => api.get(`/rnd/bom?${params}`),
+  getRequest: (id) => api.get(`/rnd/bom/${id}`),
+  approve: (id, data) => api.put(`/rnd/bom/${id}/approve`, data),
+  reject: (id, data) => api.put(`/rnd/bom/${id}/reject`, data), 
+  
+  issue: (id) => api.put(`/rnd/bom/${id}/issue`),
+  
+  // Extra routes
   usageLogs: (params = '') => api.get(`/rnd/usage-logs?${params}`),
+  receipts: (params = '') => api.get(`/rnd/receipts?${params}`),
 };
 
 // ── Audit ──

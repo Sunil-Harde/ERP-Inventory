@@ -1,4 +1,5 @@
 const RnDRequest = require('../models/RnDRequest');
+const BOM = require('../models/BOM');
 const Transaction = require('../models/Transaction');
 const {
   createRequest,
@@ -6,6 +7,17 @@ const {
   rejectRequest,
   issueMaterials,
 } = require('../services/rndService');
+const {
+  createBOM,
+  approveBOM,
+  issueBOM,
+  getProductionReceipts,
+  rejectBOM, // ✨ NEW: Imported the reject logic from bomService
+} = require('../services/bomService');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// R&D Material Requests
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * @desc    Create a new R&D material request
@@ -215,6 +227,160 @@ const getUsageLogs = async (req, res, next) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BOM (Bill of Materials) — inside R&D module
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @desc    Create a new BOM
+ * @route   POST /api/v1/rnd/bom
+ * @access  ADMIN, STAFF_RND
+ */
+const createBOMHandler = async (req, res, next) => {
+  try {
+    const { producedItem, consumedItems, warehouseFrom, warehouseTo, purpose } = req.body;
+
+    if (!producedItem || !consumedItems || consumedItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Produced item and at least one consumed item are required',
+      });
+    }
+
+    const bom = await createBOM(
+      { producedItem, consumedItems, warehouseFrom, warehouseTo, purpose },
+      req.user
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `BOM ${bom.bomNumber} created successfully`,
+      data: bom,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    List all BOMs
+ * @route   GET /api/v1/rnd/bom
+ * @access  ADMIN, STAFF_RND, STAFF_STORE
+ */
+const listBOMs = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await BOM.countDocuments(query);
+
+    const boms = await BOM.find(query)
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email')
+      .populate('issuedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.status(200).json({
+      success: true,
+      count: boms.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+      data: boms,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Approve BOM & reserve stock (Warehouse Shop1)
+ * @route   PUT /api/v1/rnd/bom/:id/approve
+ * @access  ADMIN, STAFF_STORE
+ */
+const approveBOMHandler = async (req, res, next) => {
+  try {
+    const { remarks } = req.body;
+    const bom = await approveBOM(req.params.id, req.user, remarks);
+
+    res.status(200).json({
+      success: true,
+      message: `BOM ${bom.bomNumber} approved — stock reserved`,
+      data: bom,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reject BOM (Warehouse Shop1)
+ * @route   PUT /api/v1/rnd/bom/:id/reject
+ * @access  ADMIN, STAFF_STORE
+ */
+// ✨ NEW: The Reject BOM Handler added here
+const rejectBOMHandler = async (req, res, next) => {
+  try {
+    const { remarks } = req.body;
+    const bom = await rejectBOM(req.params.id, req.user, remarks);
+
+    res.status(200).json({
+      success: true,
+      message: `BOM ${bom.bomNumber} rejected`,
+      data: bom,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Issue BOM materials & produce item (Warehouse Shop2)
+ * @route   PUT /api/v1/rnd/bom/:id/issue
+ * @access  ADMIN, STAFF_STORE
+ */
+const issueBOMHandler = async (req, res, next) => {
+  try {
+    const result = await issueBOM(req.params.id, req.user);
+
+    res.status(200).json({
+      success: true,
+      message: `BOM ${result.bom.bomNumber} issued — ${result.producedItem.itemName} produced`,
+      data: {
+        bom: result.bom,
+        transaction: result.transaction,
+        producedItem: result.producedItem,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get production receipts
+ * @route   GET /api/v1/rnd/receipts
+ * @access  ADMIN, STAFF_RND, STAFF_STORE
+ */
+const getReceipts = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const result = await getProductionReceipts({}, page, limit);
+
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createRnDRequest,
   getRnDRequests,
@@ -223,4 +389,12 @@ module.exports = {
   rejectRnDRequest,
   issueRnDMaterials,
   getUsageLogs,
+  
+  // BOM
+  createBOMHandler,
+  listBOMs,
+  approveBOMHandler,
+  rejectBOMHandler, // ✨ NEW: Exported the handler so your routes can use it
+  issueBOMHandler,
+  getReceipts,
 };

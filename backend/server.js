@@ -19,10 +19,11 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const qualityRoutes = require('./routes/qualityRoutes');
-const rndRoutes = require('./routes/rndRoutes');
+const rndRoutes = require('./routes/rndRoutes'); // This handles both R&D and BOM!
 const auditRoutes = require('./routes/auditRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const scanRoutes = require('./routes/scanRoutes');
+const rejectedItemRoutes = require('./routes/rejectedItemRoutes');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -30,22 +31,13 @@ const httpServer = http.createServer(app);
 // ── Security Middleware ──
 app.use(helmet());
 
-// app.use(cors({
-//   origin: process.env.NODE_ENV === 'production'
-//     ? process.env.CLIENT_URL
-//     : '*',
-//   credentials: true,
-// }));
-
-
-
 app.use(cors({
   origin: [
     "http://localhost:3000",
     "https://ai-inventory-system.netlify.app"
   ],
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
@@ -83,10 +75,11 @@ app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/transactions', transactionRoutes);
 app.use('/api/v1/purchase', purchaseRoutes);
 app.use('/api/v1/quality', qualityRoutes);
-app.use('/api/v1/rnd', rndRoutes);
+app.use('/api/v1/rnd', rndRoutes); // ✨ BOM endpoints live inside here!
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/scan', scanRoutes);
+app.use('/api/v1/rejected-items', rejectedItemRoutes);
 
 // ── 404 Handler ──
 app.use('*', (req, res) => {

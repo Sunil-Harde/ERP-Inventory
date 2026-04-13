@@ -14,10 +14,13 @@ import Transactions from './pages/Transactions/Transactions';
 import Purchase from './pages/Purchase/Purchase';
 import Quality from './pages/Quality/Quality';
 import RnD from './pages/RnD/RnD';
+import Shop1 from './pages/Shop1/Shop1';
+import Shop2 from './pages/Shop2/Shop2';
 import Users from './pages/Users/Users';
 import Audit from './pages/Audit/Audit';
-import Analytics from './pages/Analytics/Analytics';
+import Analytics from './pages/Reports/Reports';
 import Scan from './pages/Scan/Scan';
+import RejectedItems from './pages/RejectedItems/RejectedItems';
 
 // Inner component that reads user from AuthContext to pass userId to SocketProvider 
 const AppWithSocket = () => {
@@ -28,7 +31,6 @@ const AppWithSocket = () => {
       <Router>
         <Routes>
           {/* Public */}
-
           <Route path="/login" element={<Login />} />
 
           {/* Protected Layout */}
@@ -67,12 +69,42 @@ const AppWithSocket = () => {
               }
             />
 
-            {/* R&D — Admin + R&D + Store Staff */}
+            {/* Rejected Items — Admin + Quality Staff */}
+            <Route
+              path="rejected-items"
+              element={
+                <ProtectedRoute roles={['ADMIN', 'STAFF_QUALITY']}>
+                  <RejectedItems />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* R&D — Admin + R&D */}
             <Route
               path="rnd"
               element={
-                <ProtectedRoute roles={['ADMIN', 'STAFF_RND', 'STAFF_STORE']}>
+                <ProtectedRoute roles={['ADMIN', 'STAFF_RND']}>
                   <RnD />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Shop 1 (Approvals) — Admin + Store Staff */}
+            <Route
+              path="shop1"
+              element={
+                <ProtectedRoute roles={['ADMIN', 'STAFF_STORE']}>
+                  <Shop1 />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Shop 2 (Production) — Admin + Store Staff */}
+            <Route
+              path="shop2"
+              element={
+                <ProtectedRoute roles={['ADMIN', 'STAFF_STORE']}>
+                  <Shop2 />
                 </ProtectedRoute>
               }
             />

@@ -2,6 +2,7 @@ const QualityInspection = require('../models/QualityInspection');
 const {
   approveInspection,
   rejectInspection,
+  partialApproveInspection,
 } = require('../services/qualityService');
 
 /**
@@ -118,9 +119,54 @@ const reject = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Partial approve — split into approved + rejected quantities
+ * @route   PUT /api/v1/quality/:id/partial-approve
+ * @access  STAFF_QUALITY, Admin
+ */
+const partialApprove = async (req, res, next) => {
+  try {
+    const { approvedQty, rejectedQty, reason, remarks } = req.body;
+
+    if (approvedQty === undefined || rejectedQty === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'approvedQty and rejectedQty are required',
+      });
+    }
+
+    const result = await partialApproveInspection(
+      req.params.id,
+      req.user,
+      Number(approvedQty),
+      Number(rejectedQty),
+      reason,
+      remarks,
+    );
+
+    const messages = [];
+    if (result.item) messages.push(`${approvedQty} units added to inventory`);
+    if (result.rejectedItem) messages.push(`${rejectedQty} units rejected`);
+
+    res.status(200).json({
+      success: true,
+      message: `Inspection processed: ${messages.join(', ')}.`,
+      data: {
+        inspection: result.inspection,
+        item: result.item,
+        rejectedItem: result.rejectedItem,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getInspections,
   getInspection,
   approve,
   reject,
+  partialApprove,
 };
+

@@ -1,25 +1,36 @@
 const Transaction = require('../models/Transaction');
 
 /**
- * @desc    Get all transactions (with filters)
+ * @desc    Get all transactions (with filters and partial search)
  * @route   GET /api/v1/transactions
  * @access  Private
  */
 const getTransactions = async (req, res, next) => {
   try {
     const {
-      itemCode, type, department, startDate, endDate,
+      itemCode, type, department, startDate, endDate, 
+      search, // <-- ADDED: Destructure search from query
       page = 1, limit = 20,
     } = req.query;
 
     const query = {};
-    if (itemCode) query.itemCode = itemCode.toUpperCase();
+    
+    // Exact match if they use the old itemCode filter
+    if (itemCode) query.itemCode = itemCode.toUpperCase(); 
     if (type) query.type = type;
     if (department) query.department = department;
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    // <-- ADDED: Partial matching logic for live search
+    if (search) {
+      query.$or = [
+        { itemCode: { $regex: search, $options: 'i' } },
+        { itemName: { $regex: search, $options: 'i' } } 
+      ];
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

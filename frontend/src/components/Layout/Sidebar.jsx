@@ -4,7 +4,8 @@ import {
   HiOutlineViewGrid, HiOutlineCube, HiOutlineShoppingCart,
   HiOutlineShieldCheck, HiOutlineBeaker, HiOutlineUsers,
   HiOutlineClipboardList, HiOutlineChartBar, HiOutlineLogout,
-  HiOutlineX, HiOutlineExclamationCircle, HiOutlineQrcode
+  HiOutlineX, HiOutlineExclamationCircle, HiOutlineQrcode, HiOutlineBan,
+  HiOutlineClipboardCheck, HiOutlineCog // ✨ NEW ICONS ADDED
 } from 'react-icons/hi';
 import './Sidebar.css';
 
@@ -56,11 +57,38 @@ const Sidebar = ({ isOpen, onClose }) => {
       roles: ['ADMIN', 'STAFF_QUALITY'],
     },
     {
-      label: 'R&D Requests',
+      label: 'Rejected Items',
+      path: '/rejected-items',
+      icon: <HiOutlineBan />,
+      roles: ['ADMIN', 'STAFF_QUALITY'],
+    },
+    
+    // ── ✨ UPDATED ERP WORKFLOW MENU ──
+
+    {
+      label: 'R&D Recipes',
       path: '/rnd',
       icon: <HiOutlineBeaker />,
-      roles: ['ADMIN', 'STAFF_RND', 'STAFF_STORE'],
+      // Only Admin and R&D can see this now
+      roles: ['ADMIN', 'STAFF_RND'], 
     },
+    {
+      label: 'Shop 1 Approvals',
+      path: '/shop1',
+      icon: <HiOutlineClipboardCheck />,
+      // Only Admin and Store can see this
+      roles: ['ADMIN', 'STAFF_STORE'], 
+    },
+    {
+      label: 'Shop 2 Production',
+      path: '/shop2',
+      icon: <HiOutlineCog />,
+      // Only Admin and Store can see this
+      roles: ['ADMIN', 'STAFF_STORE'], 
+    },
+
+    // ──────────────────────────────────
+
     {
       label: 'Analytics',
       path: '/analytics',

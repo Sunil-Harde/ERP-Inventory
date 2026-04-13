@@ -1,12 +1,135 @@
-import { useState, useEffect } from 'react';
-import { rndAPI } from '../../services/api';
+import { useState, useEffect, useRef } from 'react';
+import { rndAPI, inventoryAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../../components/Modal';
 import {
-  HiOutlinePlus, HiOutlineBeaker, HiOutlineCheck, HiOutlineX,
-  HiOutlineTrash, HiOutlineTruck
+  HiOutlinePlus, HiOutlineBeaker, HiOutlineTrash, HiOutlineChevronDown
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+
+// ── Inline item-search hook ───────────────────────────────────────────────────
+function useItemSearch(query) {
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (!query || query.length < 2) { setResults([]); return; }
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await inventoryAPI.list(`search=${encodeURIComponent(query)}&limit=8`);
+        setResults(Array.isArray(res) ? res : (res.data || []));
+      } catch { setResults([]); }
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timerRef.current);
+  }, [query]);
+
+  return { results, loading };
+}
+
+// ── Item code input with autocomplete ────────────────────────────────────────
+function ItemCodeInput({ value, itemName, uom, onChange, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const wrapRef = useRef(null);
+  const { results, loading } = useItemSearch(query);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Sync external value
+  useEffect(() => { setQuery(value); }, [value]);
+
+  const handleInput = (e) => {
+    const v = e.target.value.toUpperCase();
+    setQuery(v);
+    onChange('itemCode', v);
+    onChange('itemName', '');
+    onChange('uom', 'PCS');
+    onChange('stock', null); // clear stock if user types manually
+    setOpen(true);
+  };
+
+  const handleSelect = (item) => {
+    setQuery(item.itemCode || item.sku); // Added fallback for sku
+    onSelect(item);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        className="w-full px-[0.9rem] py-[0.65rem] bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-[0.9rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none transition-all"
+        placeholder="Code (min 2 letters)"
+        value={query}
+        onChange={handleInput}
+        onFocus={() => query.length >= 2 && setOpen(true)}
+        autoComplete="off"
+        required
+      />
+      {open && (results.length > 0 || loading) && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+          background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-sm)', boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          marginTop: 4, maxHeight: 220, overflowY: 'auto',
+        }}>
+          {loading && (
+            <div style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text-muted)', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ width: 14, height: 14, border: '2px solid var(--border-color)', borderTopColor: 'var(--primary-500)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+              Searching…
+            </div>
+          )}
+          {!loading && results.map((item) => (
+            <button
+              key={item._id || item.itemCode || item.sku}
+              type="button"
+              onMouseDown={() => handleSelect(item)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', padding: '9px 14px', background: 'none', border: 'none',
+                cursor: 'pointer', textAlign: 'left', gap: 12,
+                borderBottom: '1px solid var(--border-color)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary-400)' }}>{item.itemCode || item.sku}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.itemName || item.partName}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '2px 7px',
+                  borderRadius: 20, background: 'rgba(99,102,241,0.12)',
+                  border: '1px solid rgba(99,102,241,0.25)', color: 'var(--primary-400)',
+                }}>{item.uom || item.unitOfMeasure}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Stock: {item.stock ?? item.currentStock ?? '—'}</span>
+              </div>
+            </button>
+          ))}
+          {!loading && results.length === 0 && (
+            <div style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text-muted)' }}>No items found</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+const EMPTY_ITEM = { itemCode: '', itemName: '', quantity: '', uom: 'PCS', stock: null };
+// ✨ NEW: Template for the Father Product
+const EMPTY_PRODUCED = { itemCode: '', itemName: '', quantity: 1, uom: 'PCS' };
 
 const RnD = () => {
   const { hasRole } = useAuth();
@@ -17,13 +140,12 @@ const RnD = () => {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [showReject, setShowReject] = useState(null);
-  const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     purpose: '',
-    items: [{ itemCode: '', itemName: '', quantity: '', uom: 'PCS' }],
+    producedItem: { ...EMPTY_PRODUCED }, // ✨ NEW: Added to state
+    items: [{ ...EMPTY_ITEM }],
   });
 
   useEffect(() => { loadRequests(); }, [page, status]);
@@ -42,8 +164,9 @@ const RnD = () => {
     setLoading(false);
   };
 
+  // ── Form item helpers ──
   const addItem = () => {
-    setForm({ ...form, items: [...form.items, { itemCode: '', itemName: '', quantity: '', uom: 'PCS' }] });
+    setForm({ ...form, items: [...form.items, { ...EMPTY_ITEM }] });
   };
 
   const removeItem = (index) => {
@@ -57,58 +180,47 @@ const RnD = () => {
     setForm({ ...form, items });
   };
 
+  // Auto-fill from selection
+  const selectItem = (index, inventoryItem) => {
+    const items = [...form.items];
+    items[index] = {
+      ...items[index],
+      itemCode: inventoryItem.itemCode || inventoryItem.sku,
+      itemName: inventoryItem.itemName || inventoryItem.partName,
+      uom: inventoryItem.uom || inventoryItem.unitOfMeasure || 'PCS',
+      stock: inventoryItem.stock ?? inventoryItem.currentStock ?? 0 
+    };
+    setForm({ ...form, items });
+  };
+
+  // ── API Actions ──
   const handleCreate = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // ✨ NEW: Perfectly formatted payload for your BOM Backend
       const payload = {
-        purpose: form.purpose,
-        items: form.items.map(i => ({ ...i, quantity: Number(i.quantity) })),
+        purpose: form.purpose || `Production of ${form.producedItem.itemName}`,
+        producedItem: {
+          itemCode: form.producedItem.itemCode.toUpperCase(),
+          itemName: form.producedItem.itemName,
+          quantity: Number(form.producedItem.quantity),
+          uom: form.producedItem.uom
+        },
+        consumedItems: form.items.map(i => ({ 
+          itemCode: i.itemCode, 
+          itemName: i.itemName, 
+          quantity: Number(i.quantity), 
+          uom: i.uom 
+        })),
+        warehouseFrom: 'SHOP1',
+        warehouseTo: 'SHOP2'
       };
+      
       await rndAPI.createRequest(payload);
-      toast.success('R&D request created');
+      toast.success('R&D recipe created successfully');
       setShowCreate(false);
-      setForm({ purpose: '', items: [{ itemCode: '', itemName: '', quantity: '', uom: 'PCS' }] });
-      loadRequests();
-    } catch (err) {
-      toast.error(err.message);
-    }
-    setSubmitting(false);
-  };
-
-  const handleApprove = async (id) => {
-    setSubmitting(true);
-    try {
-      await rndAPI.approve(id, {});
-      toast.success('Request approved');
-      loadRequests();
-    } catch (err) {
-      toast.error(err.message);
-    }
-    setSubmitting(false);
-  };
-
-  const handleReject = async () => {
-    if (!remarks.trim()) return toast.error('Remarks required');
-    setSubmitting(true);
-    try {
-      await rndAPI.reject(showReject._id, { remarks });
-      toast.success('Request rejected');
-      setShowReject(null);
-      setRemarks('');
-      loadRequests();
-    } catch (err) {
-      toast.error(err.message);
-    }
-    setSubmitting(false);
-  };
-
-  const handleIssue = async (id) => {
-    if (!confirm('Issue materials for this request? Stock will be deducted.')) return;
-    setSubmitting(true);
-    try {
-      const res = await rndAPI.issue(id);
-      toast.success(res.message);
+      setForm({ purpose: '', producedItem: { ...EMPTY_PRODUCED }, items: [{ ...EMPTY_ITEM }] });
       loadRequests();
     } catch (err) {
       toast.error(err.message);
@@ -117,79 +229,81 @@ const RnD = () => {
   };
 
   const statusBadge = (s) => {
-    const map = { PENDING: 'badge-warning', APPROVED: 'badge-info', ISSUED: 'badge-success', REJECTED: 'badge-danger' };
-    return <span className={`badge ${map[s]}`}>{s}</span>;
+    const map = {
+      CREATED: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(245,158,11,0.1)] text-[#f59e0b] border border-[rgba(245,158,11,0.2)]', // BOMs start as CREATED
+      PENDING: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(245,158,11,0.1)] text-[#f59e0b] border border-[rgba(245,158,11,0.2)]',
+      APPROVED: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(59,130,246,0.1)] text-[#3b82f6] border border-[rgba(59,130,246,0.2)]',
+      ISSUED: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(34,197,94,0.1)] text-[#22c55e] border border-[rgba(34,197,94,0.2)]',
+      REJECTED: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(239,68,68,0.1)] text-[#ef4444] border border-[rgba(239,68,68,0.2)]'
+    };
+    // If status is missing, default to CREATED (Pending)
+    return <span className={map[s] || ''}>{s || 'CREATED'}</span>;
   };
 
   const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { dateStyle: 'medium' });
 
+  // Shared input class
+  const inp = "w-full px-[0.9rem] py-[0.65rem] bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-[0.9rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none transition-all disabled:opacity-50";
+
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>R&D Requests</h1>
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-[fadeUp_0.35s_ease] relative z-0">
+
+      {/* Header */}
+      <div className="flex justify-between items-center mb-7 flex-wrap gap-4">
+        <h1 className="text-[1.6rem] font-bold bg-clip-text text-transparent bg-gradient-to-br from-[var(--text-primary)] to-[var(--primary-300)] tracking-[-0.02em]">R&D Material Recipes</h1>
         {hasRole('ADMIN', 'STAFF_RND') && (
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            <HiOutlinePlus /> New Request
+          <button className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary-500)] text-white border border-[var(--primary-500)] hover:-translate-y-[1px] hover:shadow-[0_4px_15px_rgba(99,102,241,0.3)]" onClick={() => setShowCreate(true)}>
+            <HiOutlinePlus /> New Recipe
           </button>
         )}
       </div>
 
-      <div className="filter-bar">
-        <select className="form-control" style={{ width: 180 }} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="APPROVED">Approved</option>
-          <option value="ISSUED">Issued</option>
-          <option value="REJECTED">Rejected</option>
+      {/* Filters */}
+      <div className="flex gap-3 mb-6 flex-wrap items-center">
+        <select className={inp} style={{ width: 180 }} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+          <option className="bg-[var(--bg-tertiary)] " value="">All Status</option>
+          <option className="bg-[var(--bg-tertiary)] " value="CREATED">Created (Pending)</option>
+          <option className="bg-[var(--bg-tertiary)] " value="APPROVED">Approved</option>
+          <option className="bg-[var(--bg-tertiary)] " value="ISSUED">Issued</option>
+          <option className="bg-[var(--bg-tertiary)] " value="REJECTED">Rejected</option>
         </select>
       </div>
 
+      {/* Table */}
       {loading ? (
-        <div className="loading-page"><div className="spinner" /></div>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4"><div className="w-[44px] h-[44px] border-[3px] border-[var(--border-color)] border-t-[var(--primary-500)] rounded-full animate-[spin_0.8s_linear_infinite]" /></div>
       ) : requests.length === 0 ? (
-        <div className="empty-state">
-          <HiOutlineBeaker className="empty-state-icon" />
-          <h3>No R&D requests</h3>
-          <p>Material requests from R&D will appear here</p>
+        <div className="flex flex-col items-center justify-center py-16 px-8 text-[var(--text-muted)] text-center">
+          <HiOutlineBeaker className="text-[3.5rem] mb-4 opacity-40" />
+          <h3 className="text-[1.15rem] font-semibold text-[var(--text-secondary)] mb-1.5">No R&D recipes</h3>
+          <p className="text-[0.85rem] max-w-[320px] mx-auto">Material recipes from R&D will appear here</p>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
+        <div className="overflow-x-auto border border-[var(--border-color)] rounded-[var(--radius-lg)] bg-[var(--bg-card)]">
+          <table className="w-full text-left border-collapse text-[0.875rem]">
+            <thead className="bg-[var(--bg-tertiary)] sticky top-0 z-10">
               <tr>
-                <th>Request #</th>
-                <th>Purpose</th>
-                <th>Items</th>
-                <th>Status</th>
-                <th>Requested By</th>
-                <th>Date</th>
-                <th>Actions</th>
+                <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Job #</th>
+                <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Target Product</th>
+                <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Materials Needed</th>
+                <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Status</th>
+                <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Date</th>
               </tr>
             </thead>
             <tbody>
               {requests.map((req) => (
-                <tr key={req._id}>
-                  <td><span className="font-semibold text-accent">{req.requestNumber}</span></td>
-                  <td className="truncate" style={{ maxWidth: 200 }}>{req.purpose}</td>
-                  <td>{req.items.length} items</td>
-                  <td>{statusBadge(req.status)}</td>
-                  <td>{req.requestedBy?.name || '—'}</td>
-                  <td className="text-sm text-muted">{formatDate(req.createdAt)}</td>
-                  <td>
-                    <div className="flex gap-1">
-                      {req.status === 'PENDING' && hasRole('ADMIN', 'STAFF_STORE') && (
-                        <>
-                          <button className="btn btn-success btn-sm" onClick={() => handleApprove(req._id)} disabled={submitting}><HiOutlineCheck /></button>
-                          <button className="btn btn-danger btn-sm" onClick={() => setShowReject(req)}><HiOutlineX /></button>
-                        </>
-                      )}
-                      {req.status === 'APPROVED' && hasRole('ADMIN', 'STAFF_STORE') && (
-                        <button className="btn btn-primary btn-sm" onClick={() => handleIssue(req._id)} disabled={submitting}>
-                          <HiOutlineTruck /> Issue
-                        </button>
-                      )}
-                    </div>
+                <tr className="hover:bg-[var(--bg-glass)] transition-colors" key={req._id}>
+                  <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)]"><span className="font-semibold text-[var(--primary-400)]">{req.requestNumber || req.bomNumber}</span></td>
+                  
+                  {/* ✨ Shows Target Product Name OR Purpose */}
+                  <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] truncate text-[var(--text-primary)] font-semibold" style={{ maxWidth: 200 }}>
+                    {req.producedItem ? req.producedItem.itemName : req.purpose}
                   </td>
+                  
+                  {/* ✨ Shows correct items array length based on your models */}
+                  <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-muted)]">{(req.consumedItems || req.items || []).length} items</td>
+                  <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle">{statusBadge(req.status)}</td>
+                  <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-sm text-[var(--text-muted)]">{formatDate(req.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -197,51 +311,135 @@ const RnD = () => {
         </div>
       )}
 
-      {/* Create Request Modal */}
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="New R&D Material Request" wide
-        footer={<><button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button className="btn btn-primary" onClick={handleCreate} disabled={submitting}>{submitting ? 'Creating...' : 'Submit Request'}</button></>}>
+      {/* ── Create Request Modal ── */}
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="New Production Recipe" wide
+        footer={
+          <>
+            <button className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary-500)] text-white border border-[var(--primary-500)] hover:-translate-y-[1px] hover:shadow-[0_4px_15px_rgba(99,102,241,0.3)] disabled:opacity-50" onClick={handleCreate} disabled={submitting}>{submitting ? 'Creating...' : 'Submit Recipe'}</button>
+          </>
+        }>
         <form onSubmit={handleCreate}>
-          <div className="form-group">
-            <label className="form-label">Purpose / Project *</label>
-            <textarea className="form-control" rows={2} placeholder="Describe the purpose..." value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} required />
-          </div>
-          <label className="form-label">Materials Needed</label>
-          {form.items.map((item, idx) => (
-            <div key={idx} className="form-row" style={{ marginBottom: '0.5rem', alignItems: 'end' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <input className="form-control" placeholder="Item Code" value={item.itemCode} onChange={(e) => updateItem(idx, 'itemCode', e.target.value)} required />
+          
+          {/* ✨ NEW: TARGET PRODUCT SECTION (FATHER) */}
+          <div className="mb-6 bg-[rgba(16,185,129,0.05)] border border-[rgba(16,185,129,0.2)] p-4 rounded-md">
+            <h3 className="text-xs font-bold text-[#10b981] uppercase tracking-wider mb-3">1. Target Output (Finished Product)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-1">
+                <label className="block text-[0.75rem] font-bold text-[var(--text-secondary)] mb-1 uppercase">Item Code / SKU *</label>
+                <input className={inp} placeholder="e.g. FIN-LED-01" value={form.producedItem.itemCode} onChange={(e) => setForm({...form, producedItem: {...form.producedItem, itemCode: e.target.value}})} required />
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <input className="form-control" placeholder="Item Name" value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} required />
+              <div className="md:col-span-2">
+                <label className="block text-[0.75rem] font-bold text-[var(--text-secondary)] mb-1 uppercase">Product Name *</label>
+                <input className={inp} placeholder="e.g. Assembled Headlight" value={form.producedItem.itemName} onChange={(e) => setForm({...form, producedItem: {...form.producedItem, itemName: e.target.value}})} required />
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <input type="number" className="form-control" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} min={1} required />
+              <div className="md:col-span-1 flex gap-2">
+                <div className="w-1/2">
+                  <label className="block text-[0.75rem] font-bold text-[var(--text-secondary)] mb-1 uppercase">Output Qty</label>
+                  <input type="number" className={inp} value={form.producedItem.quantity} onChange={(e) => setForm({...form, producedItem: {...form.producedItem, quantity: e.target.value}})} min={1} required />
+                </div>
+                <div className="w-1/2">
+                  <label className="block text-[0.75rem] font-bold text-[var(--text-secondary)] mb-1 uppercase">UOM</label>
+                  <select className={inp} value={form.producedItem.uom} onChange={(e) => setForm({...form, producedItem: {...form.producedItem, uom: e.target.value}})}>
+                    <option className="bg-[var(--bg-tertiary)]">PCS</option>
+                    <option className="bg-[var(--bg-tertiary)]">SET</option>
+                    <option className="bg-[var(--bg-tertiary)]">BOX</option>
+                  </select>
+                </div>
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <select className="form-control" value={item.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)}>
-                  <option>PCS</option><option>KG</option><option>LTR</option><option>MTR</option><option>BOX</option><option>NOS</option>
-                </select>
-              </div>
-              {form.items.length > 1 && (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeItem(idx)}><HiOutlineTrash /></button>
-              )}
             </div>
-          ))}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={addItem} style={{ marginTop: '0.5rem' }}>
-            <HiOutlinePlus /> Add Item
+          </div>
+
+          <div className="mb-5">
+            <label className="block text-[0.8rem] font-medium text-[var(--text-secondary)] mb-1.5 uppercase tracking-[0.05em]">Purpose / Project Details (Optional)</label>
+            <textarea className={inp} rows={2} placeholder="Describe the purpose of this production run..." value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} />
+          </div>
+
+          {/* RAW MATERIALS (CHILDREN) */}
+          <label className="block text-[0.8rem] font-bold text-[var(--text-secondary)] mb-3 uppercase tracking-[0.05em]">2. Raw Materials Needed (Input)</label>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {form.items.map((item, idx) => {
+              // Calculate dynamic remaining stock
+              const requestedQty = Number(item.quantity) || 0;
+              const remainingStock = item.stock != null ? item.stock - requestedQty : null;
+              const isOutOfStock = remainingStock != null && remainingStock < 0;
+
+              return (
+                <div key={idx} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '14px 14px 10px', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>                    
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Material {idx + 1}</div>
+                    {form.items.length > 1 && (
+                      <button type="button" onClick={() => removeItem(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><HiOutlineTrash size={16} /></button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, alignItems: 'start' }}>
+
+                    {/* Item Code Input */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase' }}>Item Code *</label>
+                      <ItemCodeInput
+                        value={item.itemCode}
+                        itemName={item.itemName}
+                        uom={item.uom}
+                        onChange={(field, val) => updateItem(idx, field, val)}
+                        onSelect={(inv) => selectItem(idx, inv)}
+                      />
+                    </div>
+
+                    {/* Item Name */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase' }}>Item Name *</label>
+                      <input className={inp} placeholder="Auto-filled" value={item.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} required />
+                    </div>
+
+                    {/* Quantity & Live Stock Calc */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase' }}>Quantity *</label>
+                      <input type="number" className={inp} style={{ borderColor: isOutOfStock ? '#ef4444' : '' }} placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} min={1} required />
+
+                      {/* Dynamic remaining stock display */}
+                      {item.stock != null && item.itemCode && (
+                        <div style={{ fontSize: '0.75rem', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>                      
+                          <span style={{ color: 'var(--text-muted)' }}>Avail: {item.stock}</span>
+                          <span style={{ color: isOutOfStock ? '#ef4444' : '#10b981', fontWeight: 600 }}>
+                            {remainingStock} Left
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* UOM */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase' }}>UOM</label>
+                      <div style={{ position: 'relative' }}>
+                        <select className={inp} value={item.uom} onChange={(e) => updateItem(idx, 'uom', e.target.value)} style={{ appearance: 'none', paddingRight: '2rem' }}>
+                          <option className="bg-[var(--bg-tertiary)]" >PCS</option>
+                          <option className="bg-[var(--bg-tertiary)]" >KG</option>
+                          <option className="bg-[var(--bg-tertiary)]" >LTR</option>
+                          <option className="bg-[var(--bg-tertiary)]" >MTR</option>
+                          <option className="bg-[var(--bg-tertiary)]" >BOX</option>
+                          <option className="bg-[var(--bg-tertiary)]" >NOS</option>
+                          <option className="bg-[var(--bg-tertiary)]" >GMS</option>
+                        </select>
+                        <HiOutlineChevronDown style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)', fontSize: 14 }} />
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <button type="button" className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] font-medium px-[0.75rem] py-[0.45rem] text-[0.8rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)] transition-all" onClick={addItem} style={{ marginTop: 12 }}>
+            <HiOutlinePlus /> Add Material
           </button>
         </form>
       </Modal>
 
-      {/* Reject Modal */}
-      <Modal isOpen={!!showReject} onClose={() => setShowReject(null)} title="Reject Request"
-        footer={<><button className="btn btn-secondary" onClick={() => setShowReject(null)}>Cancel</button><button className="btn btn-danger" onClick={handleReject} disabled={submitting}>Reject</button></>}>
-        <div className="form-group">
-          <label className="form-label">Rejection Reason *</label>
-          <textarea className="form-control" rows={3} placeholder="Enter reason..." value={remarks} onChange={(e) => setRemarks(e.target.value)} autoFocus />
-        </div>
-      </Modal>
-    </div>
+    </div >
   );
 };
 

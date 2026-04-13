@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { inventoryAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../../components/Modal';
+import DetailModal from '../../components/DetailModal';
 import {
   HiOutlinePlus, HiOutlineSearch, HiOutlinePencil,
   HiOutlineArrowDown, HiOutlineArrowUp, HiOutlineQrcode, HiOutlineCube
@@ -25,6 +26,7 @@ const Inventory = () => {
   const [showQR, setShowQR] = useState(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrPackQty, setQrPackQty] = useState(1);
+  const [showDetail, setShowDetail] = useState(null);
 
   // Form states
   const [form, setForm] = useState({ itemCode: '', itemName: '', uom: '', category: '', minStock: 10, description: '' });
@@ -244,7 +246,7 @@ const Inventory = () => {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item._id} className="hover:bg-[var(--bg-glass)] transition-colors border-b border-[var(--border-color)] last:border-none">
+                  <tr key={item._id} className="hover:bg-[var(--bg-glass)] transition-colors border-b border-[var(--border-color)] last:border-none cursor-pointer" onClick={() => setShowDetail(item)}>
                     <td className="px-4 py-3.5 align-middle text-[var(--text-primary)]"><span className="font-semibold text-[var(--text-accent)]">{item.itemCode}</span></td>
                     <td className="px-4 py-3.5 align-middle text-[var(--text-primary)]">{item.itemName}</td>
                     <td className="px-4 py-3.5 align-middle text-[var(--text-primary)]"><span className="font-bold">{item.stock}</span></td>
@@ -256,7 +258,7 @@ const Inventory = () => {
                     </td>
                     <td className="px-4 py-3.5 align-middle">{getStockStatus(item)}</td>
                     <td className="px-4 py-3.5 align-middle text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           className="relative z-20 w-9 h-9 flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] bg-transparent hover:text-[var(--text-primary)] hover:bg-[var(--bg-input)] transition-all cursor-pointer"
@@ -344,7 +346,7 @@ const Inventory = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Item Code *</label>
-              <input className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-sm focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none text-[var(--text-primary)]" placeholder="e.g., RM-001" value={form.itemCode} onChange={(e) => setForm({ ...form, itemCode: e.target.value })} required />
+              <input className="w-full uppercase px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-sm focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none text-[var(--text-primary)]" placeholder="e.g., RM-001" value={form.itemCode} onChange={(e) => setForm({ ...form, itemCode: e.target.value })} required />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Item Name *</label>
@@ -355,13 +357,26 @@ const Inventory = () => {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">UOM *</label>
               <select className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-sm focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none text-[var(--text-primary)]" value={form.uom} onChange={(e) => setForm({ ...form, uom: e.target.value })} required>
-                <option value="">Select</option><option value="KG">KG</option><option value="PCS">PCS</option><option value="LTR">LTR</option><option value="MTR">MTR</option><option value="BOX">BOX</option><option value="NOS">NOS</option>
+                
+                <option className="bg-[var(--bg-tertiary)]" value="">Select</option>
+                <option className="bg-[var(--bg-tertiary)]" value="KG">KG</option>
+                <option className="bg-[var(--bg-tertiary)]" value="PCS">PCS</option>
+                <option className="bg-[var(--bg-tertiary)]" value="LTR">LTR</option>
+                <option className="bg-[var(--bg-tertiary)]" value="MTR">MTR</option>
+                <option className="bg-[var(--bg-tertiary)]" value="BOX">BOX</option>
+                <option className="bg-[var(--bg-tertiary)]" value="NOS">NOS</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Category *</label>
               <select className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-sm focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none text-[var(--text-primary)]" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required>
-                <option value="">Select</option><option value="Raw Material">Raw Material</option><option value="Consumable">Consumable</option><option value="Packaging">Packaging</option><option value="Chemical">Chemical</option><option value="General">General</option>
+                
+                <option className="bg-[var(--bg-tertiary)]" value="">Select</option>
+                <option className="bg-[var(--bg-tertiary)]" value="Raw Material">Raw Material</option>
+                <option className="bg-[var(--bg-tertiary)]" value="Consumable">Consumable</option>
+                <option className="bg-[var(--bg-tertiary)]" value="Packaging">Packaging</option>
+                <option className="bg-[var(--bg-tertiary)]" value="Chemical">Chemical</option>
+                <option className="bg-[var(--bg-tertiary)]" value="General">General</option>
               </select>
             </div>
           </div>
@@ -402,13 +417,22 @@ const Inventory = () => {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">UOM</label>
               <select className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-sm focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none text-[var(--text-primary)]" value={form.uom} onChange={(e) => setForm({ ...form, uom: e.target.value })}>
-                <option value="KG">KG</option><option value="PCS">PCS</option><option value="LTR">LTR</option><option value="MTR">MTR</option><option value="BOX">BOX</option><option value="NOS">NOS</option>
+                <option className="bg-[var(--bg-tertiary)]" value="KG">KG</option>
+                <option className="bg-[var(--bg-tertiary)]" value="PCS">PCS</option>
+                <option className="bg-[var(--bg-tertiary)]" value="LTR">LTR</option>
+                <option className="bg-[var(--bg-tertiary)]" value="MTR">MTR</option>
+                <option className="bg-[var(--bg-tertiary)]" value="BOX">BOX</option>
+                <option className="bg-[var(--bg-tertiary)]" value="NOS">NOS</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Category</label>
               <select className="w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-sm focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] outline-none text-[var(--text-primary)]" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                <option value="Raw Material">Raw Material</option><option value="Consumable">Consumable</option><option value="Packaging">Packaging</option><option value="Chemical">Chemical</option><option value="General">General</option>
+                <option className='bg-[var(--bg-tertiary)]' value="Raw Material">Raw Material</option>
+                <option className='bg-[var(--bg-tertiary)]' value="Consumable">Consumable</option>
+                <option className='bg-[var(--bg-tertiary)]' value="Packaging">Packaging</option>
+                <option className='bg-[var(--bg-tertiary)]' value="Chemical">Chemical</option>
+                <option className='bg-[var(--bg-tertiary)]' value="General">General</option>
               </select>
             </div>
           </div>
@@ -515,6 +539,26 @@ const Inventory = () => {
           </div>
         ) : null}
       </Modal>
+
+      {/* Detail Modal */}
+      <DetailModal
+        isOpen={!!showDetail}
+        onClose={() => setShowDetail(null)}
+        title={`Item Details — ${showDetail?.itemCode || ''}`}
+        data={showDetail}
+        fields={[
+          { label: 'Item Code', key: 'itemCode' },
+          { label: 'Item Name', key: 'itemName' },
+          { label: 'Stock', key: 'stock', render: (v) => <span style={{ fontWeight: 700 }}>{v}</span> },
+          { label: 'UOM', key: 'uom' },
+          { label: 'Category', key: 'category' },
+          { label: 'Min Stock', key: 'minStock' },
+          { label: 'Low Stock', key: 'isLowStock', render: (v) => v ? '⚠ Yes' : 'No' },
+          { label: 'Description', key: 'description', render: (v) => v || '—' },
+          { label: 'Created', key: 'createdAt', render: (v) => v ? new Date(v).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—' },
+          { label: 'Updated', key: 'updatedAt', render: (v) => v ? new Date(v).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—' },
+        ]}
+      />
     </div>
   );
 };

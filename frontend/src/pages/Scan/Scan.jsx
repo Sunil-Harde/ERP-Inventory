@@ -37,45 +37,45 @@ function playBeep(type = 'success') {
       o.connect(g); g.connect(ctx.destination);
       o.start(now); o.stop(now + 0.26);
     }
-  } catch (_) {}
+  } catch (_) { }
 }
 
 const COOLDOWN_MS = 2000;
 const DEFAULT_QTY = 10;
 
 const Scan = () => {
-  const { user }   = useAuth();
+  const { user } = useAuth();
   const { socket } = useSocket();
 
-  const videoRef        = useRef(null);
-  const canvasRef       = useRef(null);
-  const animFrameRef    = useRef(null);
-  const streamRef       = useRef(null);
-  const lastSendRef     = useRef(0);
-  const isScanningRef   = useRef(false);
-  const hwBufferRef     = useRef('');
-  const hwTimerRef      = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const streamRef = useRef(null);
+  const lastSendRef = useRef(0);
+  const isScanningRef = useRef(false);
+  const hwBufferRef = useRef('');
+  const hwTimerRef = useRef(null);
   const suppressSyncRef = useRef(false);   // prevent echo when receiving sync
 
-  const [scanning,     setScanning]     = useState(false);
-  const [lastScan,     setLastScan]     = useState('');
-  const [error,        setError]        = useState('');
-  const [torchOn,      setTorchOn]      = useState(false);
-  const [scanMode,     setScanMode]     = useState('IN');
-  const [cooldown,     setCooldown]     = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [lastScan, setLastScan] = useState('');
+  const [error, setError] = useState('');
+  const [torchOn, setTorchOn] = useState(false);
+  const [scanMode, setScanMode] = useState('IN');
+  const [cooldown, setCooldown] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [pendingList,  setPendingList]  = useState([]);
-  const [scanHistory,  setScanHistory]  = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingList, setPendingList] = useState([]);
+  const [scanHistory, setScanHistory] = useState([]);
 
   // refs so socket callbacks always see latest values without stale closures
   const pendingListRef = useRef(pendingList);
-  const scanModeRef    = useRef(scanMode);
-  const socketRef      = useRef(socket);
+  const scanModeRef = useRef(scanMode);
+  const socketRef = useRef(socket);
 
   useEffect(() => { pendingListRef.current = pendingList; }, [pendingList]);
-  useEffect(() => { scanModeRef.current    = scanMode;    }, [scanMode]);
-  useEffect(() => { socketRef.current      = socket;      }, [socket]);
+  useEffect(() => { scanModeRef.current = scanMode; }, [scanMode]);
+  useEffect(() => { socketRef.current = socket; }, [socket]);
 
   // ── Notification auto-dismiss ─────────────────────────────────────────────
   useEffect(() => {
@@ -142,13 +142,13 @@ const Scan = () => {
       toast('List submitted on another device', { icon: '✅', duration: 2000 });
     };
 
-    socket.on('qr_scanned',        onQrScanned);
-    socket.on('scan_list_sync',    onListSync);
+    socket.on('qr_scanned', onQrScanned);
+    socket.on('scan_list_sync', onListSync);
     socket.on('scan_list_cleared', onListCleared);
 
     return () => {
-      socket.off('qr_scanned',        onQrScanned);
-      socket.off('scan_list_sync',    onListSync);
+      socket.off('qr_scanned', onQrScanned);
+      socket.off('scan_list_sync', onListSync);
       socket.off('scan_list_cleared', onListCleared);
     };
   }, [socket]);
@@ -195,7 +195,7 @@ const Scan = () => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
     if (code) {
       const now = Date.now();
@@ -239,10 +239,10 @@ const Scan = () => {
 
     // Ensure ITEMCODE|QTY format — backend 400s without it
     const normalized = qrData.includes('|') ? qrData : `${qrData}|${DEFAULT_QTY}`;
-    const itemCode   = normalized.split('|')[0].trim().toUpperCase();
+    const itemCode = normalized.split('|')[0].trim().toUpperCase();
 
     try {
-      const res      = await scanAPI.scan(normalized);
+      const res = await scanAPI.scan(normalized);
       const itemName = res.data?.itemName || itemCode;
 
       // ✅ Add to list immediately on THIS device
@@ -368,12 +368,12 @@ const Scan = () => {
           <span className="scan-notif__icon">
             {notification.type === 'success'
               ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
-                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M15 9l-6 6M9 9l6 6" strokeLinecap="round" />
-                </svg>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M15 9l-6 6M9 9l6 6" strokeLinecap="round" />
+              </svg>
             }
           </span>
           <span className="scan-notif__msg">{notification.message}</span>
@@ -555,9 +555,9 @@ const Scan = () => {
             <button
               className={[
                 'pending-list__submit',
-                pendingList.length === 0               ? 'pending-list__submit--disabled' : '',
-                scanMode === 'IN'  && pendingList.length > 0 ? 'pending-list__submit--in'      : '',
-                scanMode === 'OUT' && pendingList.length > 0 ? 'pending-list__submit--out'     : '',
+                pendingList.length === 0 ? 'pending-list__submit--disabled' : '',
+                scanMode === 'IN' && pendingList.length > 0 ? 'pending-list__submit--in' : '',
+                scanMode === 'OUT' && pendingList.length > 0 ? 'pending-list__submit--out' : '',
               ].join(' ')}
               onClick={handleSubmitAll}
               disabled={pendingList.length === 0 || submitting}

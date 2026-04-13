@@ -157,12 +157,12 @@ const Dashboard = () => {
         
         {topItems.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            <p>No transaction data yet</p>
+            <p className="text-[0.85rem] max-w-[320px] mx-auto">No transaction data yet</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead>
+              <thead className="bg-[var(--bg-tertiary)] sticky top-0 z-10">
                 <tr className="bg-gray-50/50 dark:bg-gray-800/50">
                   <th className="px-6 py-3 border-b border-gray-100 dark:border-gray-700 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
                   <th className="px-6 py-3 border-b border-gray-100 dark:border-gray-700 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Item Code</th>
@@ -174,11 +174,11 @@ const Dashboard = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {topItems.map((item, i) => (
                   <tr key={item._id || i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{i + 1}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-indigo-600 dark:text-indigo-400">{item._id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{item.itemName || '—'}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{item.totalQuantity}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{item.transactionCount}</td>
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{i + 1}</td>
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-6 py-4 text-sm font-semibold text-indigo-600 dark:text-indigo-400">{item._id}</td>
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-6 py-4 text-sm text-gray-900 dark:text-gray-200">{item.itemName || '—'}</td>
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{item.totalQuantity}</td>
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{item.transactionCount}</td>
                   </tr>
                 ))}
               </tbody>

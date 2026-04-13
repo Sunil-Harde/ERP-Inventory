@@ -117,10 +117,10 @@ const Analytics = () => {
                 <tbody>
                   {staffActivity.map((s, i) => (
                     <tr key={i} className="hover:bg-[var(--bg-glass)] transition-colors border-b border-[var(--border-color)] last:border-none">
-                      <td className="px-4 py-3 align-middle text-[var(--text-primary)] font-semibold">{s.userName || '—'}</td>
-                      <td className="px-4 py-3 align-middle text-[0.75rem] text-[var(--text-muted)]">{s.userRole}</td>
-                      <td className="px-4 py-3 align-middle"><span className="font-bold text-[var(--text-accent)]">{s.actionCount}</span></td>
-                      <td className="px-4 py-3 align-middle text-sm text-[var(--text-muted)]">{new Date(s.lastAction).toLocaleDateString('en-IN')}</td>
+                      <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-4 py-3 align-middle text-[var(--text-primary)] font-semibold">{s.userName || '—'}</td>
+                      <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-4 py-3 align-middle text-[0.75rem] text-[var(--text-[var(--text-muted)])]">{s.userRole}</td>
+                      <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-4 py-3 align-middle"><span className="font-bold text-[var(--text-accent)]">{s.actionCount}</span></td>
+                      <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] px-4 py-3 align-middle text-sm text-[var(--text-[var(--text-muted)])]">{new Date(s.lastAction).toLocaleDateString('en-IN')}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -4,7 +4,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, wide }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay " onClick={onClose}>
       <div
         className="modal-content"
         style={wide ? { maxWidth: '720px' } : {}}

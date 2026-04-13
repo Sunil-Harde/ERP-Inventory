@@ -8,6 +8,7 @@ const {
   getInspection,
   approve,
   reject,
+  partialApprove,
 } = require('../controllers/qualityController');
 
 // All routes require authentication
@@ -17,5 +18,7 @@ router.get('/', authorize(ROLES.ADMIN, ROLES.STAFF_QUALITY), getInspections);
 router.get('/:id', authorize(ROLES.ADMIN, ROLES.STAFF_QUALITY), getInspection);
 router.put('/:id/approve', authorize(ROLES.ADMIN, ROLES.STAFF_QUALITY), approve);
 router.put('/:id/reject', authorize(ROLES.ADMIN, ROLES.STAFF_QUALITY), reject);
+router.put('/:id/partial-approve', authorize(ROLES.ADMIN, ROLES.STAFF_QUALITY), partialApprove);
 
 module.exports = router;
+

@@ -45,6 +45,19 @@ const qualityInspectionSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Remarks cannot exceed 500 characters'],
     },
+    approvedQty: {
+      type: Number,
+      default: null,
+    },
+    rejectedQty: {
+      type: Number,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Rejection reason cannot exceed 500 characters'],
+    },
   },
   {
     timestamps: true,

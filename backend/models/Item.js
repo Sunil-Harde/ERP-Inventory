@@ -21,6 +21,11 @@ const itemSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Stock cannot be negative'],
     },
+    reservedQty: {
+      type: Number,
+      default: 0,
+      min: [0, 'Reserved quantity cannot be negative'],
+    },
     uom: {
       type: String,
       required: [true, 'Unit of measurement is required'],
@@ -57,6 +62,11 @@ itemSchema.index({ stock: 1 });
 // Virtual: check if stock is low
 itemSchema.virtual('isLowStock').get(function () {
   return this.stock <= this.minStock;
+});
+
+// Virtual: available stock (stock minus reserved)
+itemSchema.virtual('availableStock').get(function () {
+  return this.stock - (this.reservedQty || 0);
 });
 
 // Ensure virtuals are included in JSON

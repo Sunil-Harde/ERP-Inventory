@@ -16,7 +16,7 @@ const transactionSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: {
-        values: [TXN_TYPE.IN, TXN_TYPE.OUT],
+        values: [TXN_TYPE.IN, TXN_TYPE.OUT, TXN_TYPE.PRODUCTION],
         message: '{VALUE} is not a valid transaction type',
       },
       required: [true, 'Transaction type is required'],
@@ -47,6 +47,34 @@ const transactionSchema = new mongoose.Schema(
     relatedQC: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'QualityInspection',
+    },
+    relatedBOM: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BOM',
+    },
+    // Production-specific fields (for receipts)
+    producedItem: {
+      itemCode: String,
+      itemName: String,
+      quantity: Number,
+      price: Number,
+      uom: String,
+    },
+    consumedItems: [{
+      itemCode: String,
+      itemName: String,
+      quantity: Number,
+      price: Number,
+      uom: String,
+    }],
+    totalCost: Number,
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    issuedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {

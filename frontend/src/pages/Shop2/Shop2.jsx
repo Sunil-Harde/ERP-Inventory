@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { rndAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext'; // ✨ NEW: Needed for Role checks
 import Modal from '../../components/Modal';
 import { 
   HiOutlineTruck, 
@@ -8,11 +9,14 @@ import {
   HiOutlineEye, 
   HiOutlineDocumentText,
   HiOutlineSearch,
-  HiOutlineFilter // ✨ NEW: Filter Icon
+  HiOutlineFilter,
+  HiOutlinePencilAlt, // ✨ NEW: Edit Icon
+  HiOutlineSave       // ✨ NEW: Save Icon
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const Shop2 = () => {
+  const { hasRole } = useAuth(); // ✨ NEW: Bring in roles
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -21,14 +25,18 @@ const Shop2 = () => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [isReceiptMode, setIsReceiptMode] = useState(false);
   
-  // ✨ STATE: Search and Date Filters
+  // ✨ STATE: Edit Mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ consumedItems: [] });
+  
+  // STATE: Search and Date Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('ALL'); // NEW: Date filter state
+  const [dateFilter, setDateFilter] = useState('ALL'); 
 
   // Reload data and clear filters whenever the user switches tabs
   useEffect(() => { 
     setSearchTerm(''); 
-    setDateFilter('ALL'); // Reset date filter on tab switch
+    setDateFilter('ALL'); 
     loadRequests(); 
   }, [activeTab]);
 
@@ -46,11 +54,35 @@ const Shop2 = () => {
   const handleOpenPreview = (req) => {
     setSelectedJob(req);
     setIsReceiptMode(false); 
+    setIsEditing(false); // ✨ Reset edit mode
+    // ✨ Prep the form just in case they click Edit
+    setEditForm({ consumedItems: (req.consumedItems || req.items || []).map(i => ({...i})) });
   };
 
   const handleViewHistory = (req) => {
     setSelectedJob(req);
     setIsReceiptMode(true);
+    setIsEditing(false);
+  };
+
+  // ✨ NEW: The function to save Shop 2's edits
+  const handleSaveEdit = async () => {
+    setSubmitting(true);
+    try {
+      const payload = {
+        consumedItems: editForm.consumedItems.map(i => ({ ...i, quantity: Number(i.quantity) }))
+      };
+      await rndAPI.updateBOM(selectedJob._id, payload);
+      toast.success('Quantities updated successfully!');
+      
+      // Update the UI to show the new numbers immediately
+      setSelectedJob({ ...selectedJob, consumedItems: payload.consumedItems, items: payload.consumedItems });
+      setIsEditing(false);
+      loadRequests(); // Refresh background table
+    } catch (err) {
+      toast.error(err.message || 'Failed to update quantities');
+    }
+    setSubmitting(false);
   };
 
   const handleConfirmIssue = async () => {
@@ -71,16 +103,15 @@ const Shop2 = () => {
 
   const getMaterials = (data) => {
     if (!data) return [];
-    return data.items || data.consumedItems || [];
+    return data.consumedItems || data.items || [];
   };
 
   const calculateTotalCost = (materials) => {
     return materials.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price || 0)), 0);
   };
 
-  // ✨ NEW: Combined Filtering Logic (Search + Date)
+  // Combined Filtering Logic (Search + Date)
   const filteredRequests = requests.filter(req => {
-    // 1. Text Search Filter
     let matchesText = true;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -90,12 +121,10 @@ const Shop2 = () => {
       matchesText = jobMatch || purposeMatch || productMatch;
     }
 
-    // 2. Date Filter Logic
     let matchesDate = true;
     if (dateFilter !== 'ALL' && (req.createdAt || req.updatedAt)) {
       const reqDate = new Date(req.createdAt || req.updatedAt);
       const now = new Date();
-      // Calculate difference in days
       const diffTime = Math.abs(now - reqDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -120,7 +149,6 @@ const Shop2 = () => {
       {/* ── Tabs & Filters Row ── */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b border-[var(--border-color)] pb-4 xl:pb-0">
         
-        {/* Tabs */}
         <div className="flex gap-6 overflow-x-auto w-full xl:w-auto">
           <button 
             className={`pb-3 px-2 font-semibold transition-all whitespace-nowrap ${activeTab === 'APPROVED' ? 'text-[var(--primary-500)] border-b-2 border-[var(--primary-500)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`} 
@@ -136,10 +164,7 @@ const Shop2 = () => {
           </button>
         </div>
 
-        {/* ✨ NEW: Filters Group (Search + Date Dropdown) */}
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto xl:mb-3">
-          
-          {/* Date Filter Dropdown */}
           <div className="relative w-full sm:w-48">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <HiOutlineFilter className="text-[var(--text-muted)] text-lg" />
@@ -155,13 +180,11 @@ const Shop2 = () => {
               <option className="bg-[var(--bg-tertiary)]" value="30_DAYS">Last 30 Days</option>
               <option className="bg-[var(--bg-tertiary)]" value="1_YEAR">Last 1 Year</option>
             </select>
-            {/* Custom Arrow */}
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[var(--text-muted)]">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
             </div>
           </div>
 
-          {/* Search Input */}
           <div className="relative w-full sm:w-72">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <HiOutlineSearch className="text-[var(--text-muted)] text-lg" />
@@ -193,7 +216,6 @@ const Shop2 = () => {
           </p>
         </div>
       ) : filteredRequests.length === 0 ? (
-        /* Empty state for Filters */
         <div className="flex flex-col items-center justify-center py-16 px-8 text-[var(--text-muted)] text-center">
           <HiOutlineSearch className="text-[3.5rem] mb-4 opacity-40" />
           <h3 className="text-[1.15rem] font-semibold text-[var(--text-secondary)] mb-1.5">No Matches Found</h3>
@@ -277,27 +299,61 @@ const Shop2 = () => {
       <Modal 
         isOpen={!!selectedJob} 
         onClose={() => !submitting && setSelectedJob(null)} 
-        title={isReceiptMode ? "Manufacturing Receipt" : "Review Production Requirements"} 
+        title={isReceiptMode ? "Manufacturing Receipt" : (isEditing ? "Edit Production Quantities" : "Review Production Requirements")} 
         wide 
         footer={
           !isReceiptMode ? (
-            <>
-              <button 
-                className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]" 
-                onClick={() => setSelectedJob(null)}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button 
-                className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary-500)] text-white hover:-translate-y-[1px] hover:shadow-[0_4px_15px_rgba(99,102,241,0.3)] disabled:opacity-50" 
-                onClick={handleConfirmIssue}
-                disabled={submitting}
-              >
-                {submitting ? 'Processing...' : 'Confirm & Deduct Stock'}
-              </button>
-            </>
+            !isEditing ? (
+              // ✨ NORMAL PREVIEW MODE BUTTONS
+              <>
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]" 
+                  onClick={() => setSelectedJob(null)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                
+                {/* Admin or Shop Staff can edit before they confirm production */}
+                {(hasRole('ADMIN') || hasRole('STAFF_STORE')) && (
+                  <button 
+                    className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[#f59e0b] to-[#d97706] text-white hover:shadow-lg disabled:opacity-50" 
+                    onClick={() => setIsEditing(true)} 
+                    disabled={submitting}
+                  >
+                    <HiOutlinePencilAlt /> Edit Quantities
+                  </button>
+                )}
+
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary-500)] text-white hover:-translate-y-[1px] hover:shadow-[0_4px_15px_rgba(99,102,241,0.3)] disabled:opacity-50" 
+                  onClick={handleConfirmIssue}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Processing...' : 'Confirm & Deduct Stock'}
+                </button>
+              </>
+            ) : (
+              // ✨ EDIT MODE BUTTONS
+              <>
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]" 
+                  onClick={() => setIsEditing(false)} 
+                  disabled={submitting}
+                >
+                  Cancel Edit
+                </button>
+                <button 
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[var(--primary-600)] to-[var(--primary-500)] text-white hover:-translate-y-[1px] hover:shadow-lg disabled:opacity-50" 
+                  onClick={handleSaveEdit} 
+                  disabled={submitting}
+                >
+                  {submitting ? 'Saving...' : <><HiOutlineSave /> Save Adjustments</>}
+                </button>
+              </>
+            )
           ) : (
+            // RECEIPT MODE BUTTONS
             <>
               <button className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]" onClick={() => setSelectedJob(null)}>Close</button>
               <button className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-gradient-to-br from-[#10b981] to-[#059669] text-white hover:-translate-y-[1px] hover:shadow-lg" onClick={() => window.print()}>
@@ -347,7 +403,7 @@ const Shop2 = () => {
 
             <div className="mb-6">
               <h3 className="bg-slate-200 p-2 font-bold text-sm mb-2 uppercase text-slate-700 rounded-t-md">
-                {!isReceiptMode ? "Materials Required (Will be deducted)" : "Materials Deducted"}
+                {!isReceiptMode ? (isEditing ? "Adjust Material Quantities" : "Materials Required (Will be deducted)") : "Materials Deducted"}
               </h3>
               <table className="w-full text-sm border-collapse">
                 <thead className="border-b-2 border-slate-300">
@@ -359,7 +415,8 @@ const Shop2 = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {getMaterials(selectedJob).map((item, i) => {
+                  {/* ✨ Toggles between normal materials and the editable form based on isEditing */}
+                  {(!isEditing ? getMaterials(selectedJob) : editForm.consumedItems).map((item, i) => {
                     const lineTotal = (Number(item.quantity) * Number(item.price || 0));
                     return (
                       <tr key={i} className="border-b border-slate-200">
@@ -368,7 +425,25 @@ const Shop2 = () => {
                           <div className="text-xs text-slate-500">{item.itemName}</div>
                         </td>
                         <td className="text-right py-3 px-2 font-bold text-red-600">
-                          {item.quantity} {item.uom}
+                          {/* ✨ Edit Input Field */}
+                          {!isEditing ? (
+                            `${item.quantity} ${item.uom}`
+                          ) : (
+                            <div className="flex justify-end items-center gap-2">
+                              <input 
+                                type="number" 
+                                min="0" 
+                                className="w-20 px-2 py-1 text-right bg-white border border-slate-300 rounded outline-none focus:border-blue-500 text-slate-900" 
+                                value={item.quantity} 
+                                onChange={(e) => {
+                                  const newItems = [...editForm.consumedItems];
+                                  newItems[i].quantity = e.target.value;
+                                  setEditForm({ consumedItems: newItems });
+                                }}
+                              />
+                              <span className="text-slate-500 text-xs">{item.uom}</span>
+                            </div>
+                          )}
                         </td>
                         <td className="text-right py-3 px-2 text-slate-600">
                           ₹{Number(item.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -386,7 +461,7 @@ const Shop2 = () => {
                       Total Production Cost:
                     </td>
                     <td className="text-right py-4 px-2 font-black text-lg text-slate-900 border-t-2 border-slate-800">
-                      ₹{calculateTotalCost(getMaterials(selectedJob)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{calculateTotalCost(!isEditing ? getMaterials(selectedJob) : editForm.consumedItems).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 </tfoot>

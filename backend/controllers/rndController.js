@@ -12,6 +12,7 @@ const {
   approveBOM,
   issueBOM,
   getProductionReceipts,
+  updateBOM,
   rejectBOM, // ✨ NEW: Imported the reject logic from bomService
 } = require('../services/bomService');
 
@@ -262,6 +263,33 @@ const createBOMHandler = async (req, res, next) => {
   }
 };
 
+const updateBOMHandler = async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    
+    // We only extract what the frontend actually sends during an edit
+    const { consumedItems, purpose } = req.body;
+
+    if (!consumedItems || consumedItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one consumed item is required to update.',
+      });
+    }
+
+    // Pass it to the service layer to do the heavy lifting
+    const updatedBOM = await updateBOM(id, { consumedItems, purpose }, req.user);
+
+    res.status(200).json({
+      success: true,
+      message: `BOM ${updatedBOM.bomNumber} updated successfully`,
+      data: updatedBOM,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * @desc    List all BOMs
  * @route   GET /api/v1/rnd/bom
@@ -392,6 +420,7 @@ module.exports = {
   
   // BOM
   createBOMHandler,
+  updateBOMHandler,
   listBOMs,
   approveBOMHandler,
   rejectBOMHandler, // ✨ NEW: Exported the handler so your routes can use it

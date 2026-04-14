@@ -30,8 +30,7 @@ const createBOM = async (data, user) => {
 };
 
 /**
- * @desc Approve a BOM (Shop1) — reserve stock for all consumed items.
- * Stock is NOT deducted yet, only reserved to prevent double-booking.
+ * @desc Approve a BOM (Shop1) — ✨ IMMEDIATELY DEDUCTS STOCK ✨
  */
 const approveBOM = async (bomId, user, remarks = '') => {
   const bom = await BOM.findById(bomId);
@@ -47,7 +46,7 @@ const approveBOM = async (bomId, user, remarks = '') => {
     throw error;
   }
 
-  // Validate and reserve stock for each consumed raw material
+  // ✨ Validate and DEDUCT stock for each consumed raw material immediately
   for (const consumed of bom.consumedItems) {
     const item = await Item.findOne({ itemCode: consumed.itemCode });
     if (!item) {
@@ -56,25 +55,25 @@ const approveBOM = async (bomId, user, remarks = '') => {
       throw error;
     }
 
-    const availableStock = item.stock - (item.reservedQty || 0);
-    if (availableStock < consumed.quantity) {
+    // Checking actual stock instead of reserved
+    if (item.stock < consumed.quantity) {
       const error = new Error(
         `Insufficient available stock for ${consumed.itemCode}. ` +
-        `Available: ${availableStock}, Required: ${consumed.quantity}`
+        `Current Stock: ${item.stock}, Required: ${consumed.quantity}`
       );
       error.statusCode = 400;
       throw error;
     }
 
-    // Reserve the stock
-    item.reservedQty = (item.reservedQty || 0) + consumed.quantity;
+    // ✨ Deduct the physical stock instantly
+    item.stock -= consumed.quantity;
     await item.save();
   }
 
   // Update BOM status to APPROVED
   bom.status = BOM_STATUS.APPROVED;
   bom.approvedBy = user._id;
-  bom.reserved = true;
+  bom.reserved = false; // Set to false because it is physically deducted now
   if (remarks) bom.remarks = remarks;
   await bom.save();
 
@@ -82,6 +81,7 @@ const approveBOM = async (bomId, user, remarks = '') => {
     details: {
       bomNumber: bom.bomNumber,
       producedItem: bom.producedItem.itemCode,
+      message: 'Stock instantly deducted upon Shop 1 Approval.'
     },
   });
 
@@ -89,7 +89,7 @@ const approveBOM = async (bomId, user, remarks = '') => {
 };
 
 /**
- * @desc Reject a BOM (Shop1) — sends it back if materials are missing or incorrect.
+ * @desc Reject a BOM (Shop1) — ✨ REFUNDS STOCK IF ALREADY APPROVED ✨
  */
 const rejectBOM = async (bomId, user, remarks) => {
   const bom = await BOM.findById(bomId);
@@ -97,6 +97,17 @@ const rejectBOM = async (bomId, user, remarks) => {
     const error = new Error('BOM not found');
     error.statusCode = 404;
     throw error;
+  }
+
+  // ✨ If an Admin rejects a BOM that was ALREADY approved, we must refund the stock!
+  if (bom.status === BOM_STATUS.APPROVED) {
+    for (const consumed of bom.consumedItems) {
+      const item = await Item.findOne({ itemCode: consumed.itemCode });
+      if (item) {
+        item.stock += consumed.quantity; // Refund the stock back to the shelf
+        await item.save();
+      }
+    }
   }
   
   bom.status = 'REJECTED'; 
@@ -107,8 +118,7 @@ const rejectBOM = async (bomId, user, remarks) => {
 };
 
 /**
- * @desc Issue a BOM (Shop2) — deduct consumed materials, clear reservation,
- * add produced item (Father) to inventory, and create a PRODUCTION transaction.
+ * @desc Issue a BOM (Shop2) — ✨ ONLY CREATES THE FATHER PRODUCT ✨
  */
 const issueBOM = async (bomId, user) => {
   const bom = await BOM.findById(bomId)
@@ -127,31 +137,9 @@ const issueBOM = async (bomId, user) => {
     throw error;
   }
 
-  // 1. Deduct consumed items (Children) and clear their reservations
-  for (const consumed of bom.consumedItems) {
-    const item = await Item.findOne({ itemCode: consumed.itemCode });
-    if (!item) {
-      const error = new Error(`Item not found: ${consumed.itemCode}`);
-      error.statusCode = 404;
-      throw error;
-    }
+  // ✨ We removed the deduction loop from here because Shop 1 already deducted it! ✨
 
-    if (item.stock < consumed.quantity) {
-      const error = new Error(
-        `Insufficient stock for ${consumed.itemCode}. ` +
-        `Stock: ${item.stock}, Required: ${consumed.quantity}`
-      );
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // Deduct exact stock and clear the temporary reservation
-    item.stock -= consumed.quantity;
-    item.reservedQty = Math.max(0, (item.reservedQty || 0) - consumed.quantity);
-    await item.save();
-  }
-
-  // 2. ✨ Create or Update the Finished Good (Father Product) ✨
+  // 1. Create or Update the Finished Good (Father Product)
   const produced = bom.producedItem;
   let producedItem = await Item.findOne({ itemCode: produced.itemCode });
 
@@ -172,7 +160,7 @@ const issueBOM = async (bomId, user) => {
     });
   }
 
-  // 3. Create a single comprehensive PRODUCTION transaction receipt
+  // 2. Create a single comprehensive PRODUCTION transaction receipt
   const transaction = await Transaction.create({
     itemCode: produced.itemCode,
     itemName: produced.itemName,
@@ -201,13 +189,12 @@ const issueBOM = async (bomId, user) => {
     issuedBy: user._id,
   });
 
-  // 4. Update BOM status to finally ISSUED
+  // 3. Update BOM status to finally ISSUED
   bom.status = BOM_STATUS.ISSUED;
   bom.issuedBy = user._id;
-  bom.reserved = false;
   await bom.save();
 
-  // 5. Log the final action for audit trails
+  // 4. Log the final action for audit trails
   await logAction(AUDIT_ACTIONS.BOM_ISSUED, user, {
     details: {
       bomNumber: bom.bomNumber,
@@ -218,6 +205,55 @@ const issueBOM = async (bomId, user) => {
   });
 
   return { bom, transaction, producedItem };
+};
+
+/**
+ * @desc Update a BOM and automatically reconcile Inventory Stock
+ */
+const updateBOM = async (bomId, updateData, user) => {
+  const bom = await BOM.findById(bomId);
+  
+  if (!bom) {
+    const error = new Error('BOM not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // If we are updating the consumed materials array
+  if (updateData.consumedItems) {
+    
+    for (const newItem of updateData.consumedItems) {
+      // Find what the old quantity was before the admin edited it
+      const oldItem = bom.consumedItems.find(i => i.itemCode === newItem.itemCode);
+      const oldQty = oldItem ? Number(oldItem.quantity) : 0;
+      const newQty = Number(newItem.quantity);
+      
+      // Calculate the difference
+      const diff = newQty - oldQty; 
+
+      // If the quantity actually changed, we must adjust the inventory
+      if (diff !== 0) {
+        const inventoryItem = await Item.findOne({ itemCode: newItem.itemCode });
+        
+        if (inventoryItem) {
+          // ✨ NEW: Since stock is physically deducted at APPROVED, both APPROVED and ISSUED require actual stock adjustments
+          if (bom.status === BOM_STATUS.ISSUED || bom.status === BOM_STATUS.APPROVED) {
+            inventoryItem.stock -= diff; 
+            await inventoryItem.save();
+          }
+        }
+      }
+    }
+    
+    // Save the new array to the BOM document
+    bom.consumedItems = updateData.consumedItems;
+  }
+
+  if (updateData.purpose) bom.purpose = updateData.purpose;
+
+  await bom.save();
+
+  return bom;
 };
 
 /**
@@ -244,5 +280,6 @@ module.exports = {
   approveBOM,
   rejectBOM,
   issueBOM,
+  updateBOM,
   getProductionReceipts,
 };

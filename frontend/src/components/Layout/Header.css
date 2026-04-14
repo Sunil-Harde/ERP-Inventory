@@ -1,14 +1,14 @@
 .app-header {
-  height: var(--header-height);
+  /* height: var(--header-height); */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
+  padding: 1rem 1.5rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 1;
 }
 
 .menu-toggle {

@@ -13,6 +13,7 @@ const {
   getUsageLogs,
   // BOM
   createBOMHandler,
+  updateBOMHandler,
   listBOMs,
   approveBOMHandler,
   issueBOMHandler,
@@ -37,6 +38,7 @@ router.put('/request/:id/issue', authorize(ROLES.ADMIN, ROLES.STAFF_STORE), issu
 // ── BOM (Bill of Materials) — inside R&D ──
 router.post('/bom', authorize(ROLES.ADMIN, ROLES.STAFF_RND), createBOMHandler);
 router.get('/bom', authorize(ROLES.ADMIN, ROLES.STAFF_RND, ROLES.STAFF_STORE), listBOMs);
+router.put('/bom/:id', authorize(ROLES.ADMIN ), updateBOMHandler);
 router.put('/bom/:id/approve', authorize(ROLES.ADMIN, ROLES.STAFF_STORE), approveBOMHandler);
 
 // ✨ NEW: The Reject route for Shop 1

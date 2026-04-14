@@ -110,6 +110,7 @@ export const rndAPI = {
   createRequest: (data) => api.post('/rnd/bom', data),
   listRequests: (params = '') => api.get(`/rnd/bom?${params}`),
   getRequest: (id) => api.get(`/rnd/bom/${id}`),
+  updateBOM: (id, data) => api.put(`/rnd/bom/${id}`, data),     
   approve: (id, data) => api.put(`/rnd/bom/${id}/approve`, data),
   reject: (id, data) => api.put(`/rnd/bom/${id}/reject`, data), 
   

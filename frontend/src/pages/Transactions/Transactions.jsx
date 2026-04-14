@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { transactionsAPI, inventoryAPI } from '../../services/api';
-import { HiOutlineSearch, HiOutlineSwitchHorizontal } from 'react-icons/hi';
+import { HiOutlineSearch, HiOutlineSwitchHorizontal, HiOutlineFilter } from 'react-icons/hi';
 import DetailModal from '../../components/DetailModal';
 import toast from 'react-hot-toast';
 
@@ -32,17 +32,20 @@ const Transactions = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
+
+  // Filters
   const [type, setType] = useState('');
-  
+  const [dateFilter, setDateFilter] = useState('ALL'); // ✨ NEW: Date filter state
+
   // States for live search and suggestions
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showDetail, setShowDetail] = useState(null);
-  
+
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchWrapRef = useRef(null);
-  
+
   // Only fetch suggestions if the dropdown is meant to be shown
   const { results: suggestions, loading: loadingSuggestions } = useItemSearch(showSuggestions ? searchInput : '');
 
@@ -66,22 +69,32 @@ const Transactions = () => {
           setPage(1);
         }
       }
-    }, 400); 
+    }, 400);
     return () => clearTimeout(timer);
   }, [searchInput, activeSearch]);
 
-  // Load transactions whenever page, type, or the debounced search changes
+  // Load transactions whenever page, type, activeSearch, or DATE FILTER changes
   useEffect(() => {
     loadTxns();
-  }, [page, type, activeSearch]);
+  }, [page, type, activeSearch, dateFilter]);
 
   const loadTxns = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit: 20 });
       if (type) params.set('type', type);
-      if (activeSearch) params.set('search', activeSearch); 
-      
+      if (activeSearch) params.set('search', activeSearch);
+
+      // ✨ NEW: Date Filtering Logic to pass to Backend
+      if (dateFilter !== 'ALL') {
+        const startDate = new Date();
+        if (dateFilter === '7_DAYS') startDate.setDate(startDate.getDate() - 7);
+        if (dateFilter === '15_DAYS') startDate.setDate(startDate.getDate() - 15);
+        if (dateFilter === '30_DAYS') startDate.setDate(startDate.getDate() - 30);
+        if (dateFilter === '6_MONTHS') startDate.setMonth(startDate.getMonth() - 6);
+        params.set('startDate', startDate.toISOString());
+      }
+
       const res = await transactionsAPI.list(params.toString());
       setTxns(res.data);
       setTotal(res.total);
@@ -99,29 +112,99 @@ const Transactions = () => {
     setPage(1);
   };
 
-  const formatDate = (d) => new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  // ✨ NEW: Smart Date Formatter (Hides year if it is current year)
+  const formatSmartDate = (d) => {
+    if (!d) return '—';
+    const date = new Date(d);
+    const now = new Date();
+    const isCurrentYear = date.getFullYear() === now.getFullYear();
+
+    const options = {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    };
+
+    // Only add the year if it is from a previous year
+    if (!isCurrentYear) {
+      options.year = 'numeric';
+    }
+
+    return date.toLocaleString('en-IN', options);
+  };
+
+  // ✨ NEW: Dynamic Modal Fields (Adds BOM details if they exist)
+  const getModalFields = () => {
+    const fields = [
+      { label: 'Date', key: 'createdAt', render: (v) => formatSmartDate(v) },
+      { label: 'Item Code', key: 'itemCode' },
+      { label: 'Item Name', key: 'itemName', render: (v) => v || '—' },
+      { label: 'Type', key: 'type', render: (v) => <span style={{ fontWeight: 700, color: v === 'IN' ? '#22c55e' : '#ef4444' }}>{v}</span> },
+      { label: 'Quantity', key: 'quantity', render: (v, d) => <span style={{ fontWeight: 700, color: d.type === 'IN' ? '#22c55e' : '#ef4444' }}>{d.type === 'IN' ? '+' : '-'}{v}</span> },
+      { label: 'Performed By', key: 'performedBy', render: (v) => v?.name || '—' },
+      { label: 'Department', key: 'department', render: (v) => v || '—' },
+      { label: 'Remarks', key: 'remarks', render: (v) => v || '—' },
+    ];
+
+    // If this transaction has consumed items (meaning it's a Production Job), show the sub-products!
+    if (showDetail?.consumedItems && showDetail.consumedItems.length > 0) {
+      fields.push({
+        label: 'Sub-Products Consumed',
+        key: 'consumedItems',
+        render: (consumedArray) => (
+          <div className="mt-2 w-full bg-[rgba(239,68,68,0.05)] border border-[rgba(239,68,68,0.2)] p-3 rounded-md">
+            <p className="text-[0.7rem] font-bold text-[#ef4444] uppercase tracking-wider mb-2">
+              Materials required to build this item:
+            </p>
+            <ul className="space-y-1.5">
+              {consumedArray.map((item, idx) => (
+                <li key={idx} className="flex justify-between items-center text-sm border-b border-[rgba(239,68,68,0.1)] pb-1 last:border-0 last:pb-0">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-[var(--text-primary)]">{item.itemCode}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{item.itemName}</span>
+                  </div>
+                  <span className="font-bold text-[#ef4444] whitespace-nowrap">
+                    -{item.quantity} {item.uom}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 pt-2 border-t border-[rgba(239,68,68,0.1)] text-right text-xs text-[var(--text-secondary)] font-medium">
+              Total distinct materials: {consumedArray.length}
+            </div>
+          </div>
+        )
+      });
+    }
+
+    return fields;
+  };
+
+  const sharedInputClasses = "w-full px-[0.9rem] py-[0.65rem] bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-[0.9rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] focus:bg-[rgba(255,255,255,0.08)] outline-none transition-all disabled:opacity-50 appearance-none cursor-pointer";
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-[fadeUp_0.35s_ease] relative z-0">
-      
+
       <div className="flex justify-between items-center mb-7 flex-wrap gap-4">
         <h1 className="text-[1.6rem] font-bold bg-clip-text text-transparent bg-gradient-to-br from-[var(--text-primary)] to-[var(--primary-300)] tracking-[-0.02em]">Transactions</h1>
       </div>
 
       {/* ── Filters & Search ── */}
       <div className="flex gap-3 mb-6 flex-wrap items-center">
-        
+
         {/* Search Wrapper with Ref for Outside Click Detection */}
         <div ref={searchWrapRef} className="relative flex-1 min-w-[220px]" style={{ maxWidth: 280, zIndex: 50 }}>
           <HiOutlineSearch className="absolute right-[0.85rem] top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[1rem]" />
-          <input 
-            type="text" 
-            className="w-full uppercase  pl-[2.2rem] pr-[0.9rem] py-[0.65rem] bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-[0.9rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] focus:bg-[rgba(255,255,255,0.08)] outline-none transition-all disabled:opacity-50" 
-            placeholder="Type 2+ letters to search" 
+          <input
+            type="text"
+            className="w-full uppercase  pl-[1.2rem] pr-[2.2rem] py-[0.65rem] bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-[0.9rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] focus:bg-[rgba(255,255,255,0.08)] outline-none transition-all disabled:opacity-50"
+            placeholder="Search by Code..."
             value={searchInput}
             onChange={(e) => {
               setSearchInput(e.target.value);
-              setShowSuggestions(true); // Show dropdown when typing
+              setShowSuggestions(true);
             }}
             onFocus={() => {
               if (searchInput.length >= 2) setShowSuggestions(true);
@@ -147,7 +230,7 @@ const Transactions = () => {
                 <button
                   key={item._id || item.itemCode}
                   type="button"
-                  onMouseDown={() => handleSelectSuggestion(item)} 
+                  onMouseDown={() => handleSelectSuggestion(item)}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     width: '100%', padding: '9px 14px', background: 'none', border: 'none',
@@ -175,16 +258,43 @@ const Transactions = () => {
           )}
         </div>
 
-        <select 
-          className="w-full px-[0.9rem] py-[0.65rem] bg-[var(--bg-input)] border border-[var(--border-color)] rounded-[var(--radius-sm)] text-[0.9rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary-500)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] focus:bg-[rgba(255,255,255,0.08)] outline-none transition-all disabled:opacity-50" 
-          style={{ width: 150 }} 
-          value={type} 
-          onChange={(e) => { setType(e.target.value); setPage(1); }}
-        >
-          <option className="bg-[var(--bg-tertiary)] " value="">All Types</option>
-          <option className="bg-[var(--bg-tertiary)] " value="IN">IN</option>
-          <option className="bg-[var(--bg-tertiary)] " value="OUT">OUT</option>
-        </select>
+        {/* ✨ NEW: Date Filter */}
+        <div className="relative w-[160px]">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <HiOutlineFilter className="text-[var(--text-muted)] text-[1rem]" />
+          </div>
+          <select
+            className={`${sharedInputClasses} pl-9`}
+            value={dateFilter}
+            onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
+          >
+            <option className="bg-[var(--bg-tertiary)]" value="ALL">All Time</option>
+            <option className="bg-[var(--bg-tertiary)]" value="7_DAYS">Last 7 Days</option>
+            <option className="bg-[var(--bg-tertiary)]" value="15_DAYS">Last 15 Days</option>
+            <option className="bg-[var(--bg-tertiary)]" value="30_DAYS">Last 30 Days</option>
+            <option className="bg-[var(--bg-tertiary)]" value="6_MONTHS">Last 6 Months</option>
+          </select>
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[var(--text-muted)]">
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
+          </div>
+        </div>
+
+        {/* Type Filter */}
+        <div className="relative w-[140px]">
+          <select
+            className={sharedInputClasses}
+            value={type}
+            onChange={(e) => { setType(e.target.value); setPage(1); }}
+          >
+            <option className="bg-[var(--bg-tertiary)]" value="">All Types</option>
+            <option className="bg-[var(--bg-tertiary)]" value="IN">IN (Added)</option>
+            <option className="bg-[var(--bg-tertiary)]" value="OUT">OUT (Used)</option>
+          </select>
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[var(--text-muted)]">
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
+          </div>
+        </div>
+
       </div>
 
       {/* ── Table ── */}
@@ -194,7 +304,7 @@ const Transactions = () => {
         <div className="flex flex-col items-center justify-center py-16 px-8 text-[var(--text-muted)] text-center">
           <HiOutlineSwitchHorizontal className="text-[3.5rem] mb-4 opacity-40" />
           <h3 className="text-[1.15rem] font-semibold text-[var(--text-secondary)] mb-1.5">No transactions found</h3>
-          <p className="text-[0.85rem] max-w-[320px] mx-auto">Inventory movements will appear here</p>
+          <p className="text-[0.85rem] max-w-[320px] mx-auto">Try adjusting your date or type filters.</p>
         </div>
       ) : (
         <>
@@ -209,18 +319,18 @@ const Transactions = () => {
                   <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Quantity</th>
                   <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Performed By</th>
                   <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Department</th>
-                  <th className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">Remarks</th>
                 </tr>
               </thead>
               <tbody>
                 {txns.map((t) => (
                   <tr className="hover:bg-[var(--bg-glass)] transition-colors cursor-pointer" key={t._id} onClick={() => setShowDetail(t)}>
-                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] text-sm text-[var(--text-muted)]">{formatDate(t.createdAt)}</td>
+                    {/* ✨ Applied formatSmartDate here */}
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] text-[0.85rem] whitespace-nowrap font-medium text-[var(--text-muted)]">{formatSmartDate(t.createdAt)}</td>
                     <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)]"><span className="font-semibold text-[var(--primary-400)]">{t.itemCode}</span></td>
-                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)]">{t.itemName || '—'}</td>
+                    <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)] truncate max-w-[200px]">{t.itemName || '—'}</td>
                     <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle">
-                      <span className={t.type === 'IN' 
-                        ? 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(34,197,94,0.1)] text-[#22c55e] border border-[rgba(34,197,94,0.2)]' 
+                      <span className={t.type === 'IN'
+                        ? 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(34,197,94,0.1)] text-[#22c55e] border border-[rgba(34,197,94,0.2)]'
                         : 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] whitespace-nowrap bg-[rgba(239,68,68,0.1)] text-[#ef4444] border border-[rgba(239,68,68,0.2)]'
                       }>
                         {t.type}
@@ -231,7 +341,6 @@ const Transactions = () => {
                     </td>
                     <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)]">{t.performedBy?.name || '—'}</td>
                     <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] align-middle text-[var(--text-primary)]">{t.department || '—'}</td>
-                    <td className="text-sm text-[var(--text-muted)] truncate px-4 py-[0.8rem] border-b border-[var(--border-color)]" style={{ maxWidth: 200 }}>{t.remarks || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -252,21 +361,13 @@ const Transactions = () => {
         </>
       )}
 
+      {/* ✨ Modal fields generated dynamically to show Sub-Products */}
       <DetailModal
         isOpen={!!showDetail}
         onClose={() => setShowDetail(null)}
         title={`Transaction Details`}
         data={showDetail}
-        fields={[
-          { label: 'Date', key: 'createdAt', render: (v) => v ? new Date(v).toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'medium' }) : '—' },
-          { label: 'Item Code', key: 'itemCode' },
-          { label: 'Item Name', key: 'itemName', render: (v) => v || '—' },
-          { label: 'Type', key: 'type', render: (v) => <span style={{ fontWeight: 700, color: v === 'IN' ? '#22c55e' : '#ef4444' }}>{v}</span> },
-          { label: 'Quantity', key: 'quantity', render: (v, d) => <span style={{ fontWeight: 700, color: d.type === 'IN' ? '#22c55e' : '#ef4444' }}>{d.type === 'IN' ? '+' : '-'}{v}</span> },
-          { label: 'Performed By', key: 'performedBy.name', render: (v) => v || '—' },
-          { label: 'Department', key: 'department', render: (v) => v || '—' },
-          { label: 'Remarks', key: 'remarks', render: (v) => v || '—' },
-        ]}
+        fields={getModalFields()}
       />
     </div>
   );

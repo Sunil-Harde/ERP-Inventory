@@ -48,6 +48,10 @@ const itemSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, 'Description cannot exceed 500 characters'],
     },
+    alertSent: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // createdAt & updatedAt

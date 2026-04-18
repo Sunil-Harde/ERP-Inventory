@@ -49,4 +49,7 @@ router.put('/bom/:id/issue', authorize(ROLES.ADMIN, ROLES.STAFF_STORE), issueBOM
 // ── Production Receipts ──
 router.get('/receipts', authorize(ROLES.ADMIN, ROLES.STAFF_RND, ROLES.STAFF_STORE), getReceipts);
 
+
+
+
 module.exports = router;

@@ -3,6 +3,7 @@ const Item = require('../models/Item');
 const Transaction = require('../models/Transaction');
 const { RND_STATUS, TXN_TYPE, AUDIT_ACTIONS } = require('../utils/constants');
 const { logAction } = require('./auditService');
+const { checkAndAlertLowStock } = require('./whatsappService');
 
 /**
  * Create a new R&D material request.
@@ -125,6 +126,11 @@ const issueMaterials = async (requestId, user) => {
     item.stock -= reqItem.quantity;
     await item.save();
     updatedItems.push(item);
+
+    // Check low stock alert
+    checkAndAlertLowStock(item).catch(err =>
+      console.error('[WhatsApp] R&D issue alert failed:', err.message)
+    );
 
     // Create OUT transaction
     const txn = await Transaction.create({

@@ -34,9 +34,9 @@ function useItemSearch(query) {
 
 // ── Item code input with autocomplete ────────────────────────────────────────
 function ItemCodeInput({ value, itemName, uom, onChange, onSelect }) {
-  const [open, setOpen]   = useState(false);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
-  const wrapRef           = useRef(null);
+  const wrapRef = useRef(null);
   const { results, loading } = useItemSearch(query);
 
   // Close on outside click
@@ -131,15 +131,15 @@ function ItemCodeInput({ value, itemName, uom, onChange, onSelect }) {
 function ItemDetailModal({ item, onClose }) {
   if (!item) return null;
   const rows = [
-    ['Item Code',     item.itemCode],
-    ['Item Name',     item.itemName],
-    ['Category',      item.category || '—'],
-    ['UOM',           item.uom],
+    ['Item Code', item.itemCode],
+    ['Item Name', item.itemName],
+    ['Category', item.category || '—'],
+    ['UOM', item.uom],
     ['Current Stock', `${item.stock ?? 0} ${item.uom}`],
-    ['Min Stock',     item.minStock != null ? `${item.minStock} ${item.uom}` : '—'],
-    ['Location',      item.location || '—'],
-    ['HSN Code',      item.hsnCode  || '—'],
-    ['Description',   item.description || '—'],
+    ['Min Stock', item.minStock != null ? `${item.minStock} ${item.uom}` : '—'],
+    ['Location', item.location || '—'],
+    ['HSN Code', item.hsnCode || '—'],
+    ['Description', item.description || '—'],
   ];
   return (
     <Modal isOpen={!!item} onClose={onClose} title="Item Details"
@@ -165,17 +165,17 @@ function ItemDetailModal({ item, onClose }) {
 const EMPTY_ITEM = { itemCode: '', itemName: '', quantity: '', uom: 'PCS' };
 
 const Purchase = () => {
-  const [orders,       setOrders]       = useState([]);
-  const [total,        setTotal]        = useState(0);
-  const [page,         setPage]         = useState(1);
-  const [pages,        setPages]        = useState(1);
-  const [status,       setStatus]       = useState('');
-  const [loading,      setLoading]      = useState(true);
-  const [showCreate,   setShowCreate]   = useState(false);
-  const [showReceive,  setShowReceive]  = useState(null);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [viewItem,     setViewItem]     = useState(null);   // item detail popup
-  const [viewPO,       setViewPO]       = useState(null);   // PO details popup
+  const [orders, setOrders] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showReceive, setShowReceive] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [viewItem, setViewItem] = useState(null);   // item detail popup
+  const [viewPO, setViewPO] = useState(null);   // PO details popup
 
   const [form, setForm] = useState({
     supplier: '', remarks: '',
@@ -220,7 +220,7 @@ const Purchase = () => {
         ...items[idx],
         itemCode: inventoryItem.itemCode,
         itemName: inventoryItem.itemName,
-        uom:      inventoryItem.uom || 'PCS',
+        uom: inventoryItem.uom || 'PCS',
       };
       return { ...f, items };
     });
@@ -233,7 +233,7 @@ const Purchase = () => {
     try {
       await purchaseAPI.create({
         supplier: form.supplier,
-        remarks:  form.remarks,
+        remarks: form.remarks,
         items: form.items.map(i => ({ ...i, quantity: Number(i.quantity) })),
       });
       toast.success('Purchase order created');
@@ -241,17 +241,17 @@ const Purchase = () => {
       setForm({ supplier: '', remarks: '', items: [{ ...EMPTY_ITEM }] });
       loadOrders();
     } catch (err) { toast.error(err.message); }
-    setSubmitting(false);
+    setSubmitting(false);   
   };
 
   // ── Receive ───────────────────────────────────────────────────────────────
   const openReceive = (po) => {
     setReceiveItems(po.items.map(i => ({
-      itemCode:        i.itemCode,
-      itemName:        i.itemName,
-      ordered:         i.quantity,
+      itemCode: i.itemCode,
+      itemName: i.itemName,
+      ordered: i.quantity,
       alreadyReceived: i.receivedQty || 0,
-      receivedQty:     0,
+      receivedQty: 0,
     })));
     setShowReceive(po);
   };
@@ -274,9 +274,9 @@ const Purchase = () => {
   // ── Helpers ───────────────────────────────────────────────────────────────
   const statusBadge = (s) => {
     const styles = {
-      ORDERED:             'bg-[rgba(59,130,246,0.1)] text-[#3b82f6] border-[rgba(59,130,246,0.2)]',
-      PARTIALLY_RECEIVED:  'bg-[rgba(245,158,11,0.1)] text-[#f59e0b] border-[rgba(245,158,11,0.2)]',
-      RECEIVED:            'bg-[rgba(34,197,94,0.1)] text-[#22c55e] border-[rgba(34,197,94,0.2)]',
+      ORDERED: 'bg-[rgba(59,130,246,0.1)] text-[#3b82f6] border-[rgba(59,130,246,0.2)]',
+      PARTIALLY_RECEIVED: 'bg-[rgba(245,158,11,0.1)] text-[#f59e0b] border-[rgba(245,158,11,0.2)]',
+      RECEIVED: 'bg-[rgba(34,197,94,0.1)] text-[#22c55e] border-[rgba(34,197,94,0.2)]',
     };
     return (
       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[0.72rem] font-semibold uppercase tracking-[0.03em] border ${styles[s] || 'bg-[rgba(148,163,184,0.1)] text-[var(--text-secondary)] border-[rgba(148,163,184,0.15)]'}`}>
@@ -337,7 +337,7 @@ const Purchase = () => {
           <table className="w-full text-left border-collapse text-[0.875rem]">
             <thead className="bg-[var(--bg-tertiary)] sticky top-0 z-10">
               <tr>
-                {['PO Number','Supplier','Items','Status','Created','Actions'].map(h => (
+                {['PO Number', 'Supplier', 'Items', 'Status', 'Created', 'Actions'].map(h => (
                   <th key={h} className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -480,7 +480,7 @@ const Purchase = () => {
                         onChange={e => updateItem(idx, 'uom', e.target.value)}
                         style={{ appearance: 'none', paddingRight: '2rem' }}
                       >
-                        {['PCS','KG','LTR','MTR','BOX','NOS','GMS','TON'].map(u => <option key={u}>{u}</option>)}
+                        {['PCS', 'KG', 'LTR', 'MTR', 'BOX', 'NOS', 'GMS', 'TON'].map(u => <option key={u}>{u}</option>)}
                       </select>
                       <HiOutlineChevronDown style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)', fontSize: 14 }} />
                     </div>
@@ -585,7 +585,7 @@ const Purchase = () => {
           <table className="w-full text-left border-collapse text-[0.875rem]">
             <thead className="bg-[var(--bg-tertiary)]">
               <tr>
-                {['Item Code','Item Name','Ordered','Already Recv','Receive Now'].map(h => (
+                {['Item Code', 'Item Name', 'Ordered', 'Already Recv', 'Receive Now'].map(h => (
                   <th key={h} className="font-semibold uppercase tracking-[0.05em] text-[0.72rem] text-[var(--text-secondary)] px-4 py-[0.85rem] border-b border-[var(--border-color)] whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -597,21 +597,36 @@ const Purchase = () => {
                   <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] text-[var(--text-primary)]">{item.itemName}</td>
                   <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] text-[var(--text-muted)]">{item.ordered}</td>
                   <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)] text-[var(--text-muted)]">{item.alreadyReceived}</td>
-                  <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)]">
-                    <input
-                      type="number"
-                      className={inp}
-                      style={{ width: 100 }}
-                      value={item.receivedQty}
-                      min={0}
-                      max={item.ordered - item.alreadyReceived}
-                      onChange={e => {
-                        const arr = [...receiveItems];
-                        arr[idx].receivedQty = Number(e.target.value);
-                        setReceiveItems(arr);
-                      }}
-                    />
-                  </td>
+
+                  {
+                    console.log(item.orders)
+                  }
+
+                  {
+                    item.ordered !== item.alreadyReceived ? (
+                      <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)]">
+                        <input
+                          type="number"
+                          className={inp}
+                          style={{ width: 100 }}
+                          value={item.receivedQty}
+                          min={0}
+                          max={item.ordered - item.alreadyReceived}
+                          onChange={e => {
+                            const arr = [...receiveItems];
+                            arr[idx].receivedQty = Number(e.target.value);
+                            setReceiveItems(arr);
+                          }}
+                        />
+                      </td>
+                    ) : (
+
+                      <td className="px-4 py-[0.8rem] border-b border-[var(--border-color)]">
+                        All Items Received
+                      </td>
+
+                    )
+                  }
                 </tr>
               ))}
             </tbody>
@@ -626,8 +641,8 @@ const Purchase = () => {
         title={`Purchase Order — ${viewPO?.poNumber}`}
         wide
         footer={
-          <button 
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]" 
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-all px-[1.25rem] py-[0.6rem] text-[0.875rem] bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-card-hover)]"
             onClick={() => setViewPO(null)}
           >
             Close

@@ -3,6 +3,7 @@ const Transaction = require('../models/Transaction');
 const { TXN_TYPE, AUDIT_ACTIONS } = require('../utils/constants');
 const { logAction } = require('./auditService');
 const { parseQR } = require('../utils/qrParser');
+const { checkAndAlertLowStock } = require('./whatsappService');
 
 /**
  * Process inward — increase stock from QR scan data.
@@ -19,6 +20,12 @@ const processInward = async (qrData, user, remarks = '') => {
 
   // Increase stock
   item.stock += packQty;
+
+  // Reset alert flag since stock was replenished
+  if (item.alertSent && item.stock > item.minStock) {
+    item.alertSent = false;
+  }
+
   await item.save();
 
   // Create transaction
@@ -81,6 +88,11 @@ const processIssue = async (itemCode, quantity, user, remarks = '') => {
     itemCode: item.itemCode,
     quantity,
     details: { newStock: item.stock },
+  });
+
+  // Check & send WhatsApp alert if stock fell below threshold
+  checkAndAlertLowStock(item).catch(err => {
+    console.error('[WhatsApp] Alert check failed:', err.message);
   });
 
   return { item, transaction };

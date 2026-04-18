@@ -3,6 +3,7 @@ const Item = require('../models/Item');
 const Transaction = require('../models/Transaction');
 const { BOM_STATUS, TXN_TYPE, AUDIT_ACTIONS } = require('../utils/constants');
 const { logAction } = require('./auditService');
+const { checkAndAlertLowStock } = require('./whatsappService');
 
 /**
  * @desc Create a new BOM (Recipe).
@@ -68,6 +69,11 @@ const approveBOM = async (bomId, user, remarks = '') => {
     // ✨ Deduct the physical stock instantly
     item.stock -= consumed.quantity;
     await item.save();
+
+    // Check low stock alert
+    checkAndAlertLowStock(item).catch(err =>
+      console.error('[WhatsApp] BOM approval alert failed:', err.message)
+    );
   }
 
   // Update BOM status to APPROVED
@@ -240,6 +246,13 @@ const updateBOM = async (bomId, updateData, user) => {
           if (bom.status === BOM_STATUS.ISSUED || bom.status === BOM_STATUS.APPROVED) {
             inventoryItem.stock -= diff; 
             await inventoryItem.save();
+
+            // Check low stock alert after BOM edit
+            if (diff > 0) {
+              checkAndAlertLowStock(inventoryItem).catch(err =>
+                console.error('[WhatsApp] BOM update alert failed:', err.message)
+              );
+            }
           }
         }
       }

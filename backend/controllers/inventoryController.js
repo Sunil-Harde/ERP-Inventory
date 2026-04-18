@@ -8,6 +8,7 @@ const {
   getLowStockItems,
 } = require('../services/inventoryService');
 const { parseQR } = require('../utils/qrParser');
+const { checkAndAlertLowStock } = require('../services/whatsappService');
 
 /**
  * @desc    Get all inventory items
@@ -103,6 +104,11 @@ const createItem = async (req, res, next) => {
       details: { itemName: item.itemName, stock: item.stock },
     });
 
+    // Check low stock alert on creation
+    checkAndAlertLowStock(item).catch(err =>
+      console.error('[WhatsApp] Item create alert failed:', err.message)
+    );
+
     res.status(201).json({
       success: true,
       message: 'Item created successfully',
@@ -137,6 +143,13 @@ const updateItem = async (req, res, next) => {
     if (description !== undefined) item.description = description;
 
     await item.save();
+
+    // If minStock was changed, re-check low stock alert
+    if (minStock !== undefined) {
+      checkAndAlertLowStock(item).catch(err =>
+        console.error('[WhatsApp] Item update alert failed:', err.message)
+      );
+    }
 
     await logAction(AUDIT_ACTIONS.ITEM_UPDATED, req.user, {
       itemCode: item.itemCode,

@@ -1,29 +1,45 @@
 // const API_BASE = 'https://erp-inventory-sable.vercel.app/api/v1';
 const API_BASE = '/api/v1';
 
+let isRefreshing = false;
+let refreshQueue = [];
+
 class ApiService {
   constructor() {
     this.baseURL = API_BASE;
   }
 
-  getToken() {
-    return localStorage.getItem('erp_token');
-  }
-
   headers(isJson = true) {
     const h = {};
     if (isJson) h['Content-Type'] = 'application/json';
-    const token = this.getToken();
-    if (token) h['Authorization'] = `Bearer ${token}`;
     return h;
   }
 
-  async request(method, path, body = null) {
+  async request(method, path, body = null, isRetry = false) {
     const url = `${this.baseURL}${path}`;
-    const options = { method, headers: this.headers() };
+    const options = {
+      method,
+      headers: this.headers(),
+      credentials: 'include', // Send cookies with every request
+    };
     if (body) options.body = JSON.stringify(body);
 
     const res = await fetch(url, options);
+
+    // Handle 401 — attempt auto-refresh (only once)
+    if (res.status === 401 && !isRetry && !path.includes('/auth/login') && !path.includes('/auth/refresh')) {
+      const refreshed = await this.tryRefresh();
+      if (refreshed) {
+        // Retry the original request
+        return this.request(method, path, body, true);
+      }
+      // Refresh failed — force logout
+      window.dispatchEvent(new CustomEvent('auth:force-logout'));
+      const err = new Error('Session expired. Please login again.');
+      err.status = 401;
+      throw err;
+    }
+
     const data = await res.json();
 
     if (!res.ok) {
@@ -33,6 +49,42 @@ class ApiService {
       throw err;
     }
     return data;
+  }
+
+  async tryRefresh() {
+    // If already refreshing, wait for the result
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        refreshQueue.push(resolve);
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const res = await fetch(`${this.baseURL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        // Notify all queued requests
+        refreshQueue.forEach(cb => cb(true));
+        refreshQueue = [];
+        isRefreshing = false;
+        return true;
+      }
+
+      refreshQueue.forEach(cb => cb(false));
+      refreshQueue = [];
+      isRefreshing = false;
+      return false;
+    } catch {
+      refreshQueue.forEach(cb => cb(false));
+      refreshQueue = [];
+      isRefreshing = false;
+      return false;
+    }
   }
 
   get(path) { return this.request('GET', path); }
@@ -49,6 +101,8 @@ export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   changePassword: (data) => api.put('/auth/change-password', data),
+  logout: () => api.post('/auth/logout'),
+  refresh: () => api.post('/auth/refresh'),
 };
 
 // ── Users ──
@@ -103,20 +157,15 @@ export const rejectedItemsAPI = {
   stats: () => api.get('/rejected-items/stats'),
 };
 
-// ── R&D ──
 // ── R&D & BOM (Manufacturing) ──
 export const rndAPI = {
-  // ✨ Switched these endpoints from '/rnd/request' to '/rnd/bom'
   createRequest: (data) => api.post('/rnd/bom', data),
   listRequests: (params = '') => api.get(`/rnd/bom?${params}`),
   getRequest: (id) => api.get(`/rnd/bom/${id}`),
   updateBOM: (id, data) => api.put(`/rnd/bom/${id}`, data),     
   approve: (id, data) => api.put(`/rnd/bom/${id}/approve`, data),
   reject: (id, data) => api.put(`/rnd/bom/${id}/reject`, data), 
-  
   issue: (id) => api.put(`/rnd/bom/${id}/issue`),
-  
-  // Extra routes
   usageLogs: (params = '') => api.get(`/rnd/usage-logs?${params}`),
   receipts: (params = '') => api.get(`/rnd/receipts?${params}`),
 };

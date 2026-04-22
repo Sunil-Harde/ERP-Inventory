@@ -6,14 +6,18 @@ const { ROLES } = require('../utils/constants');
 const {
   register,
   login,
+  refreshTokenHandler,
+  logout,
   getMe,
   changePassword,
 } = require('../controllers/authController');
 
 // Public
 router.post('/login', login);
+router.post('/refresh', refreshTokenHandler);
 
 // Protected
+router.post('/logout', protect, logout);
 router.get('/me', protect, getMe);
 router.put('/change-password', protect, changePassword);
 

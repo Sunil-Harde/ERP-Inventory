@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -13,21 +13,37 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout();
+    } catch {
+      // Ignore errors during logout (might already be expired)
+    }
+    // Clean up any leftover localStorage from old system
+    localStorage.removeItem('erp_token');
+    setUser(null);
+  }, []);
+
   useEffect(() => {
     checkAuth();
+
+    // Listen for force-logout events (from API auto-refresh failure)
+    const handleForceLogout = () => {
+      localStorage.removeItem('erp_token');
+      setUser(null);
+    };
+    window.addEventListener('auth:force-logout', handleForceLogout);
+    return () => window.removeEventListener('auth:force-logout', handleForceLogout);
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('erp_token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     try {
+      // Cookie is sent automatically — just call /me
       const res = await authAPI.getMe();
       setUser(res.data);
     } catch {
-      localStorage.removeItem('erp_token');
+      // Not logged in or token expired (auto-refresh already attempted by API service)
+      localStorage.removeItem('erp_token'); // Clean up old system
       setUser(null);
     }
     setLoading(false);
@@ -35,14 +51,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const res = await authAPI.login({ email, password });
-    localStorage.setItem('erp_token', res.data.token);
+    // Clean up old localStorage token if it exists
+    localStorage.removeItem('erp_token');
     setUser(res.data.user);
     return res;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('erp_token');
-    setUser(null);
   };
 
   const hasRole = (...roles) => {

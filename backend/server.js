@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
@@ -51,7 +52,8 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// ── Body Parsing & Logging ──
+// ── Body Parsing, Cookies & Logging ──
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === 'development') {
@@ -67,6 +69,16 @@ app.get('/api/v1/health', (req, res) => {
     environment: process.env.NODE_ENV,
   });
 });
+
+// ── Login Rate Limiter (brute force protection) ──
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Too many login attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/v1/auth/login', loginLimiter);
 
 // ── API Routes ──
 app.use('/api/v1/auth', authRoutes);

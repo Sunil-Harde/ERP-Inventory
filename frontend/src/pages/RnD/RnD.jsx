@@ -195,11 +195,9 @@ const RnD = () => {
     setSubmitting(false);
   };
 
-  // ✨ NEW: Open details modal
   const handleRowClick = (job) => {
     setViewJob(job);
     setIsEditing(false);
-    // Prepare the edit form just in case Admin clicks edit
     setEditForm({
       consumedItems: (job.consumedItems || job.items || []).map(i => ({ ...i }))
     });
